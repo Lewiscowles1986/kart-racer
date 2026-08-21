@@ -42,27 +42,39 @@ npm run dev          # then open http://localhost:5173
 
 ```
 src/
-  main.js            bootstrap + window.THREE for tooling
-  config.js          every tuning constant in one place
+  main.ts            bootstrap + window.THREE for tooling
+  config.ts          every tuning constant in one place (typed)
   game/
-    Game.js          renderer, scene, state machine, collisions, ranking, camera
-    Kart.js          arcade physics (steer/accel/drift/boost/spin)
-    KartVisual.js    procedural kart + driver mesh
-    AI.js            rubber-banded racing AI
-    Items.js         item boxes, roulette, banana/mushroom/star
-    Effects.js       pooled GPU particles + rings
-    HUD.js           DOM overlay (position/lap/timer/minimap/menus)
-    Input.js         keyboard + touch
-    Audio.js         fully synthesized WebAudio
-    minimap.js       minimap polyline
-  track/track.js     Catmull-Rom loop, terrain, ribbon road, props
-  util/tex.js        procedural canvas textures
-scripts/
-  qa.mjs            headless QA (puppeteer-core + installed Chrome)
-  scene.mjs         live scene introspection
-  analyze-frame.mjs / probe.mjs / column.mjs   pixel-metric visual checks
-  shot.sh / menu.mjs  headless screenshot helpers
+    Game.ts          renderer, scene, state machine, collisions, ranking, camera
+    Kart.ts          arcade physics (steer/accel/drift/boost/spin)
+    KartVisual.ts    procedural kart + distinct driver meshes
+    AI.ts            rubber-banded racing AI
+    Items.ts         item boxes, roulette, banana/mushroom/star
+    Effects.ts       pooled GPU particles + rings
+    HUD.ts           DOM overlay (position/lap/timer/minimap/menus)
+    Input.ts         keyboard + touch (typed input frame)
+    Audio.ts         fully synthesized WebAudio
+    minimap.ts       minimap polyline
+  track/track.ts     Catmull-Rom loop, terrain, ribbon road, props
+  util/tex.ts        procedural canvas textures
+tests/               Vitest regression tests (track, kart, input, config)
+scripts/             headless QA + pixel-metric visual checks
 ```
+
+## Development
+
+```bash
+npm install
+npm run dev          # dev server (Vite, TS transpiled on the fly)
+npm run build        # production build
+npm run test         # Vitest regression suite
+npm run typecheck    # tsc --noEmit (strict)
+```
+
+The project is **TypeScript** (strict mode) with a typed `config.ts` as the single
+source of tuning truth. `npm run typecheck` and `npm run test` are the regression
+guards: they catch steering-direction regressions, physics clamping, track/tree
+placement, and config sanity before they reach the browser.
 
 ## QA methodology
 
@@ -74,6 +86,7 @@ sub-agents audited gameplay feel, visuals, polish/UX/audio, and bugs; their P0/P
 findings were integrated. This caught and fixed real issues, including:
 - a steering-inversion bug that sent karts off the road (boost made steering flip),
 - a road that was invisible because ribbon triangle winding flipped on half the loop,
+- trees that could spawn on the track (hint-windowed `worldToTrack`),
 - a missing shadow system and flat Lambert materials → PBR + shadows added,
 - a particle-system crash (`Effects._setZero`), a dust-call crash on drift, and
   banana self-hits,

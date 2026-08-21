@@ -1,12 +1,35 @@
 import * as THREE from 'three';
-import { ITEM, ITEM_BOX_PLACEMENTS, PHYS } from '../config.js';
-import { itemBoxTexture } from '../util/tex.js';
-import { terrainHeight, worldToTrack, sampleAtU } from '../track/track.js';
+import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE } from '../config';
+import { itemBoxTexture } from '../util/tex';
+import { terrainHeight } from '../track/track';
+import type { Kart, Track, World } from './Kart';
+
+interface ItemBox {
+  mesh: THREE.Group;
+  u: number;
+  lateral: number;
+  respawn: number;
+  taken: boolean;
+}
+
+interface Banana {
+  mesh: THREE.Group;
+  pos: THREE.Vector3;
+  dropper: Kart;
+  dropT: number;
+}
 
 // Item boxes, the roulette that picks the item, and the active items on the
 // road (bananas) plus their effects (mushroom boost, star/shield invincibility).
 export class Items {
-  constructor({ scene, track, world }) {
+  scene: THREE.Scene;
+  track: Track;
+  world: World;
+
+  boxes: ItemBox[];
+  bananas: Banana[];
+
+  constructor({ scene, track, world }: { scene: THREE.Scene; track: Track; world: World }) {
     this.scene = scene;
     this.track = track;
     this.world = world;
@@ -19,7 +42,6 @@ export class Items {
   buildBoxes() {
     const tex = itemBoxTexture();
     const mat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x222200 });
-    const count = ITEM_BOX_PLACEMENTS.length;
     ITEM_BOX_PLACEMENTS.forEach((frac, i) => {
       const u = frac * this.track.totalLen;
       const lateral = i % 2 === 0 ? -1.6 : 1.6;
@@ -34,7 +56,7 @@ export class Items {
     });
   }
 
-  placeOnTrack(obj, u, lateral) {
+  placeOnTrack(obj: THREE.Object3D, u: number, lateral: number) {
     const { sample } = this.track.sampleAtU(u);
     const x = sample.x + sample.nx * lateral;
     const z = sample.z + sample.nz * lateral;
@@ -50,7 +72,7 @@ export class Items {
   }
 
   // Roulette a random item with weighted odds (children-friendly, no rare-only).
-  rollItem() {
+  rollItem(): 'banana' | 'mushroom' | 'star' {
     const total = ITEM.weights.banana + ITEM.weights.mushroom + ITEM.weights.star;
     let r = Math.random() * total;
     if ((r -= ITEM.weights.banana) < 0) return 'banana';
@@ -58,7 +80,7 @@ export class Items {
     return 'star';
   }
 
-  use(kart, id) {
+  use(kart: Kart, id: string) {
     if (id === 'banana') {
       this.dropBanana(kart);
     } else if (id === 'mushroom') {
@@ -69,11 +91,11 @@ export class Items {
       kart.starT = PHYS.boost.star.time / 1000;
       kart.shieldT = kart.starT;
       this.world.audio.star();
-      this.world.effects.ring(kart.pos.clone().setY(kart.pos.y + 0.6), new THREE.Color(1, 0.9, 0.2), 3.2);
+      this.world.effects.ring(kart.pos.clone().setY(kart.pos.y + 0.6 * KART_SCALE), new THREE.Color(1, 0.9, 0.2), 3.2);
     }
   }
 
-  dropBanana(kart) {
+  dropBanana(kart: Kart) {
     const back = new THREE.Vector3(-Math.sin(kart.yaw), 0, -Math.cos(kart.yaw));
     const px = kart.pos.x + back.x * 1.8;
     const pz = kart.pos.z + back.z * 1.8;
@@ -84,11 +106,9 @@ export class Items {
     this.bananas.push({ mesh, pos: new THREE.Vector3(px, 0, pz), dropper: kart, dropT: 0 });
   }
 
-  #makeBananaMesh() {
+  #makeBananaMesh(): THREE.Group {
     const g = new THREE.Group();
     const yellow = new THREE.MeshPhongMaterial({ color: 0xffd23f, shininess: 70, specular: 0x555500 });
-    const brown = new THREE.MeshPhongMaterial({ color: 0x8a5a00, shininess: 30 });
-    const segs = 5;
     const torus = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.16, 8, 12, Math.PI * 1.5), yellow);
     torus.rotation.y = Math.PI / 2;
     torus.position.y = 0.1;
@@ -97,7 +117,7 @@ export class Items {
   }
 
   // ---- per-frame update ----
-  update(dt, karts) {
+  update(dt: number, karts: Kart[]) {
     // animate + respawn boxes
     const now = this.world.timeMs;
     for (const b of this.boxes) {
@@ -114,10 +134,10 @@ export class Items {
         for (const k of karts) {
           if (k.item || k.rouletteT > 0) continue;
           const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-          if (dx * dx + dz * dz < 2.2 * 2.2) {
+          if (dx * dx + dz * dz < (2.2 * KART_SCALE) * (2.2 * KART_SCALE)) {
             k.rouletteT = ITEM.rouletteMs / 1000;
             this.world.audio.pickup();
-            this.world.effects.ring(k.pos.clone().setY(k.pos.y + 0.6), new THREE.Color(1, 0.9, 0.3), 1.6);
+            this.world.effects.ring(k.pos.clone().setY(k.pos.y + 0.6 * KART_SCALE), new THREE.Color(1, 0.9, 0.3), 1.6);
             b.taken = true; b.respawn = ITEM.boxRespawnMs / 1000; b.mesh.visible = false;
             break;
           }
@@ -134,7 +154,7 @@ export class Items {
     }
 
     // bananas: drop protection then make hazardous
-    const toRemove = [];
+    const toRemove: Banana[] = [];
     for (const b of this.bananas) {
       b.dropT += dt;
       b.mesh.rotation.y += dt * 2;
@@ -143,7 +163,7 @@ export class Items {
         if (k.shieldT > 0) continue;
         if (k === b.dropper) continue; // a kart never slips on its own banana
         const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-        if (dx * dx + dz * dz < 1.4 * 1.4) {
+        if (dx * dx + dz * dz < (1.4 * KART_SCALE) * (1.4 * KART_SCALE)) {
           if (k.hitBanana()) { toRemove.push(b); break; }
         }
       }

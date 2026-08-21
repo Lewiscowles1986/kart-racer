@@ -1,13 +1,85 @@
 import * as THREE from 'three';
-import { PHYS, TERRAIN } from '../config.js';
-import { terrainHeight, terrainNormal, worldToTrack } from '../track/track.js';
+import { PHYS, TERRAIN, KART_SCALE } from '../config';
+import { terrainHeight, terrainNormal, worldToTrack } from '../track/track';
+import type { Sample, TrackResult } from '../track/track';
+import type { KartVisual } from './KartVisual';
+import type { InputFrame } from './Input';
+import type { Effects } from './Effects';
+import type { Audio } from './Audio';
+import type { Items } from './Items';
 
 const UP = new THREE.Vector3(0, 1, 0);
+// ride height of the kart's center above the terrain, scaled with the kart
+const RIDE_HEIGHT = 0.9 * KART_SCALE;
+
+export interface Track {
+  totalLen: number;
+  samples: Sample[];
+  halfWidth: number;
+  sampleAtU: (u: number) => { sample: Sample; u: number; index: number };
+  worldToTrack: (pos: { x: number; z: number }, hint?: number) => TrackResult;
+}
+
+export interface World {
+  karts: Kart[];
+  timeMs: number;
+  totalLaps: number;
+  effects: Effects;
+  audio: Audio;
+  items: Items;
+}
+
+export interface KartOptions {
+  index: number;
+  name: string;
+  color: number;
+  accent: number;
+  track: Track;
+  world: World;
+  visual: KartVisual;
+}
 
 // Arcade kart physics tuned to feel instantly fun (genre-standard: heavy on
 // grip, playful on drift) with faithful off-road slowdown, boost, and spin-out.
 export class Kart {
-  constructor({ index, name, color, accent, track, world, visual }) {
+  index: number;
+  name: string;
+  world: World;
+  track: Track;
+  isPlayer: boolean;
+
+  pos: THREE.Vector3;
+  yaw: number;
+  speed: number;
+  radius: number;
+
+  trackHint: number;
+  onRoad: boolean;
+
+  spinning: number;      // >0 while slipping on a banana
+  boostT: number;
+  shieldT: number;
+  starT: number;
+  item: string | null;
+
+  drifting: boolean;
+  driftT: number;
+
+  lap: number;
+  dist: number;          // cumulative along-track distance this lap
+  prevU: number;
+  finished: boolean;
+  finishTime: number | null;
+  raceTime: number;
+  respawnT: number;
+  rouletteT: number;     // item-box reveal countdown before the item locks in
+
+  visual: KartVisual;
+  visualRoot: THREE.Group;
+  color: number;
+  terrainFactor!: number;
+
+  constructor({ index, name, color, track, world, visual }: KartOptions) {
     this.index = index;
     this.name = name;
     this.world = world;
@@ -17,7 +89,7 @@ export class Kart {
     this.pos = new THREE.Vector3();
     this.yaw = 0;
     this.speed = 0;
-    this.radius = 1.05;
+    this.radius = 1.05 * KART_SCALE;
 
     this.trackHint = 0;
     this.onRoad = true;
@@ -45,15 +117,15 @@ export class Kart {
     this.color = color;
   }
 
-  setPos(x, z) {
-    this.pos.set(x, terrainHeight(x, z) + 0.9, z);
-    this.pos.y = terrainHeight(this.pos.x, this.pos.z) + 0.9;
+  setPos(x: number, z: number) {
+    this.pos.set(x, terrainHeight(x, z) + RIDE_HEIGHT, z);
+    this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
   }
-  faceTangent(u) {
+  faceTangent(u: number) {
     const { sample } = this.track.sampleAtU(u);
     this.yaw = Math.atan2(sample.tx, sample.tz);
   }
-  placeAt(u, lateral) {
+  placeAt(u: number, lateral: number) {
     const { sample } = this.track.sampleAtU(u);
     const x = sample.x + sample.nx * lateral;
     const z = sample.z + sample.nz * lateral;
@@ -72,7 +144,7 @@ export class Kart {
     this.speed = 0;
     this.spinning = 0;
     this.respawnT = 0;
-    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.6), new THREE.Color(0.45, 0.85, 1), 2.2);
+    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.6 * KART_SCALE), new THREE.Color(0.45, 0.85, 1), 2.2);
   }
 
   useItem() {
@@ -82,36 +154,36 @@ export class Kart {
     this.world.items.use(this, id);
   }
 
-  hitBanana() {
+  hitBanana(): boolean {
     if (this.shieldT > 0 || this.spinning > 0) return false;
     this.spinning = PHYS.bananaSpinMs / 1000;
     this.speed *= 0.62;
-    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4), 12);
+    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4 * KART_SCALE), 12);
     this.world.audio.slip();
     return true;
   }
 
   // A shielded (star) kart plows into this one: hard shove + brief spin.
-  hitPlow(shoveDir) {
+  hitPlow(shoveDir: THREE.Vector3) {
     if (this.shieldT > 0 || this.spinning > 0) return;
     this.spinning = Math.max(this.spinning, 0.65);
     this.speed *= 0.35;
-    this.pos.addScaledVector(shoveDir, 2.2);
-    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4), 8);
+    this.pos.addScaledVector(shoveDir, 2.2 * KART_SCALE);
+    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4 * KART_SCALE), 8);
     this.world.audio.hit();
   }
 
   #miniTurbo() {
     this.boostT = 1.3;
     this.world.audio.boost();
-    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.5), new THREE.Color(1, 0.4, 0.2), 2.2);
+    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.5 * KART_SCALE), new THREE.Color(1, 0.4, 0.2), 2.2);
     this.driftT = 0;
     this.drifting = false;
   }
 
-  update(dt, input) {
+  update(dt: number, input: InputFrame) {
     this.raceTime += dt;
-    this.pos.y = terrainHeight(this.pos.x, this.pos.z) + 0.9;
+    this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
 
     const t = worldToTrack(this.pos, this.trackHint);
     this.trackHint = t.index;
@@ -175,6 +247,20 @@ export class Kart {
     // track progress + laps
     const t2 = worldToTrack(this.pos, this.trackHint);
     this.trackHint = t2.index;
+
+    // soft edge walls: let the kart run a little onto the grass, then gently
+    // push it back toward the road so it's hard to actually leave the track.
+    const maxLat = this.track.halfWidth + 4.5;
+    if (Math.abs(t2.lat) > maxLat) {
+      const s = this.track.sampleAtU(t2.u).sample;
+      const over = Math.abs(t2.lat) - maxLat;
+      const dx = s.x - this.pos.x, dz = s.z - this.pos.z;
+      const len = Math.hypot(dx, dz) || 1;
+      this.pos.x += (dx / len) * over;
+      this.pos.z += (dz / len) * over;
+      this.speed *= 0.985;
+    }
+
     const L = this.track.totalLen;
     let du = t2.u - this.prevU;
     if (du < -L * 0.5) du += L;
@@ -198,13 +284,13 @@ export class Kart {
     this.#visuals(dt, steer, boosting);
   }
 
-  #topSpeed(boost) {
+  #topSpeed(boost: boolean): number {
     const base = PHYS.maxSpeed * this.terrainFactor;
     if (!boost) return base;
     return this.starT > 0 ? PHYS.boost.star.top : PHYS.boost.mushroom.top;
   }
 
-  #orient(dt, steer) {
+  #orient(dt: number, steer: number) {
     this.visualRoot.position.copy(this.pos);
     const n = terrainNormal(this.pos.x, this.pos.z);
     const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
@@ -216,7 +302,7 @@ export class Kart {
     this.visualRoot.quaternion.slerp(target, Math.min(1, 10 * dt));
   }
 
-  #visuals(dt, steer, boosting) {
+  #visuals(dt: number, steer: number, boosting: boolean) {
     const v = this.visual;
     const rot = (this.speed / 0.42) * dt;
     for (const w of v.wheels) w.rotation.x -= rot;

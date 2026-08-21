@@ -1,0 +1,21 @@
+import puppeteer from 'puppeteer-core';
+const CHROME='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const b=await puppeteer.launch({executablePath:CHROME,headless:'new',args:['--no-sandbox','--disable-gpu','--enable-unsafe-swiftshader','--use-angle=swiftshader']});
+const p=await b.newPage();
+await p.goto('http://127.0.0.1:5173/',{waitUntil:'load',timeout:30000});
+await new Promise(r=>setTimeout(r,2500));
+await p.evaluate(()=>window.__game.startRace());
+await new Promise(r=>setTimeout(r,4500));
+await p.keyboard.down('ArrowUp');
+await p.keyboard.down('ArrowRight');
+await new Promise(r=>setTimeout(r,1000));
+const r=await p.evaluate(()=>{
+  const g=window.__game, T=window.THREE;
+  const k=g.player;
+  const fwd=new T.Vector3(Math.sin(k.yaw),0,Math.cos(k.yaw));
+  const a=new T.Vector3(k.pos.x,k.pos.y+0.5,k.pos.z).project(g.camera);
+  const b=new T.Vector3(k.pos.x+fwd.x,k.pos.y+0.5,k.pos.z+fwd.z).project(g.camera);
+  return {screenFwdX:+(b.x-a.x).toFixed(3), yaw:+k.yaw.toFixed(3)};
+});
+console.log('pressing RIGHT -> nose screen-x delta =',r.screenFwdX,'(positive = turns right on screen)');
+await b.close();

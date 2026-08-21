@@ -1,12 +1,31 @@
 import * as THREE from 'three';
-import { TRACK_POINTS, WORLD } from '../config.js';
-import { asphaltTexture, curbTexture, dirtTexture, grassTexture, sandTexture, woodTexture } from '../util/tex.js';
+import { TRACK_POINTS, WORLD } from '../config';
+import { asphaltTexture, curbTexture, dirtTexture, grassTexture } from '../util/tex';
+
+export interface Sample {
+  x: number;
+  z: number;
+  u: number;
+  tx: number;
+  tz: number;
+  nx: number;
+  nz: number;
+}
+
+export interface TrackResult {
+  index: number;
+  lat: number;
+  lon: number;
+  u: number;
+  tangent: { x: number; z: number };
+  normal: { x: number; z: number };
+}
 
 // ---- Catmull-Rom closed spline helpers ------------------------------------
 const PTS = TRACK_POINTS.map(([x, z]) => ({ x, z }));
 const N = PTS.length;
 
-function splinePoint(i, t, out) {
+function splinePoint(i: number, t: number, out: { x: number; z: number }) {
   const p0 = PTS[(i - 1 + N) % N];
   const p1 = PTS[i % N];
   const p2 = PTS[(i + 1) % N];
@@ -16,22 +35,12 @@ function splinePoint(i, t, out) {
   out.z = 0.5 * (2 * p1.z + (-p0.z + p2.z) * t + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3);
 }
 
-function splineTangent(i, t, out) {
-  const p0 = PTS[(i - 1 + N) % N];
-  const p1 = PTS[i % N];
-  const p2 = PTS[(i + 1) % N];
-  const p3 = PTS[(i + 2) % N];
-  const t2 = t * t;
-  out.x = 0.5 * ((-p0.x + p2.x) + 2 * (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t + 3 * (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t2);
-  out.z = 0.5 * ((-p0.z + p2.z) + 2 * (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t + 3 * (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t2);
-}
-
 // ---- Rolling, gentle terrain heightfield ----------------------------------
-export function terrainHeight(x, z) {
+export function terrainHeight(x: number, z: number): number {
   let h = 0;
   h += 2.4 * Math.sin(x * 0.018) * Math.cos(z * 0.02);
   h += 1.3 * Math.sin(x * 0.045 + z * 0.03);
-  const hill = (cx, cz, s, a) => {
+  const hill = (cx: number, cz: number, s: number, a: number) => {
     const d2 = (x - cx) * (x - cx) + (z - cz) * (z - cz);
     return a * Math.exp(-d2 / (2 * s * s));
   };
@@ -42,7 +51,7 @@ export function terrainHeight(x, z) {
 }
 
 // Terrain normal via finite differences (for orienting karts to the slope).
-export function terrainNormal(x, z) {
+export function terrainNormal(x: number, z: number): THREE.Vector3 {
   const e = 0.35;
   const hL = terrainHeight(x - e, z), hR = terrainHeight(x + e, z);
   const hD = terrainHeight(x, z - e), hU = terrainHeight(x, z + e);
@@ -51,8 +60,8 @@ export function terrainNormal(x, z) {
   return new THREE.Vector3(nx, 1, nz).normalize();
 }
 
-function buildSamples() {
-  const raw = [];
+function buildSamples(): { samples: Sample[]; totalLen: number; M: number } {
+  const raw: { x: number; z: number }[] = [];
   const pt = { x: 0, z: 0 };
   const segSteps = 80;
   for (let i = 0; i < N; i++) {
@@ -61,11 +70,11 @@ function buildSamples() {
       raw.push({ x: pt.x, z: pt.z });
     }
   }
-  const samples = [];
+  const samples: Sample[] = [];
   const spacing = WORLD.roadRes;
   let prev = raw[0];
   let u = 0;
-  samples.push({ x: prev.x, z: prev.z, u: 0 });
+  samples.push({ x: prev.x, z: prev.z, u: 0, tx: 0, tz: 0, nx: 0, nz: 0 });
   for (let i = 1; i <= raw.length; i++) {
     const p = raw[i % raw.length];
     let dx = p.x - prev.x, dz = p.z - prev.z;
@@ -74,7 +83,7 @@ function buildSamples() {
       const step = Math.min(spacing, d);
       prev = { x: prev.x + (dx / d) * step, z: prev.z + (dz / d) * step };
       u += step;
-      samples.push({ x: prev.x, z: prev.z, u });
+      samples.push({ x: prev.x, z: prev.z, u, tx: 0, tz: 0, nx: 0, nz: 0 });
       dx = p.x - prev.x; dz = p.z - prev.z;
       d = Math.hypot(dx, dz);
     }
@@ -98,9 +107,8 @@ const { samples, totalLen, M } = buildSamples();
 export const ROAD_HALF = WORLD.roadWidth / 2;
 const offroadHalf = ROAD_HALF + WORLD.curbWidth;
 
-export function worldToTrack(pos, hint = 0) {
+export function worldToTrack(pos: { x: number; z: number }, hint = 0): TrackResult {
   let best = hint, bestD = Infinity;
-  const M = samples.length;
   for (let k = -14; k <= 14; k++) {
     const i = (((best + k) % M) + M) % M;
     const s = samples[i];
@@ -115,12 +123,12 @@ export function worldToTrack(pos, hint = 0) {
   return { index: best, lat, lon, u: s.u + lon, tangent: { x: s.tx, z: s.tz }, normal: { x: s.nx, z: s.nz } };
 }
 
-export function onRoad(pos, hint = 0) {
+export function onRoad(pos: { x: number; z: number }, hint = 0): TrackResult & { road: boolean } {
   const t = worldToTrack(pos, hint);
   return { road: Math.abs(t.lat) <= offroadHalf, ...t };
 }
 
-export function sampleAtU(u) {
+export function sampleAtU(u: number): { sample: Sample; u: number; index: number } {
   const L = totalLen;
   let uu = u;
   while (uu < 0) uu += L;
@@ -133,44 +141,39 @@ export function sampleAtU(u) {
 // Returns a BufferGeometry. `repeatEvery` controls the along-track UV scale so the
 // texture tiles once per `repeatEvery` metres of track. Winding is oriented UP for
 // every quad so the road never flips invisible on a closed loop.
-function buildRibbon(offA, offB, repeatEvery = 8) {
-  const positions = [];
-  const uvs = [];
+function buildRibbon(offA: number, offB: number, repeatEvery = 8): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
   for (let i = 0; i < M; i++) {
     const p = samples[i];
     const ax = p.x + p.nx * offA, az = p.z + p.nz * offA;
     const bx = p.x + p.nx * offB, bz = p.z + p.nz * offB;
-    const ha = terrainHeight(ax, az), hb = terrainHeight(bx, bz);
-    positions.push(ax, ha, az, bx, hb, bz);
+    // follow the terrain so the road never gets buried under the hills
+    positions.push(ax, terrainHeight(ax, az), az, bx, terrainHeight(bx, bz), bz);
     uvs.push(0, p.u / repeatEvery, 1, p.u / repeatEvery);
   }
-  const idx = [];
-  const v = (i) => positions[i * 3];
-  // orient helper: returns 1 if winding (a,b,c) is up-facing, else -1
-  const upWinding = (a, b, c) => {
-    const ax = v(a), ay = positions[a * 3 + 1], az = positions[a * 3 + 2];
-    const bx = v(b), by = positions[b * 3 + 1], bz = positions[b * 3 + 2];
-    const cx = v(c), cy = positions[c * 3 + 1], cz = positions[c * 3 + 2];
-    const ux = bx - ax, uy = by - ay, uz = bz - az;
-    const wx = cx - ax, wy = cy - ay, wz = cz - az;
-    const ny = uz * wx - ux * wz; // y-component of cross (u × w)
-    return ny >= 0 ? 1 : -1;
-  };
+  const indices: number[] = [];
   for (let i = 0; i < M; i++) {
     const a = i * 2, b = i * 2 + 1;
     const c = ((i + 1) % M) * 2, d = ((i + 1) % M) * 2 + 1;
-    if (upWinding(a, b, c) > 0) idx.push(a, b, c); else idx.push(a, c, b);
-    if (upWinding(b, d, c) > 0) idx.push(b, d, c); else idx.push(b, c, d);
+    // up-facing winding via cross-product y-sign
+    const ux = positions[b * 3] - positions[a * 3];
+    const uz = positions[b * 3 + 2] - positions[a * 3 + 2];
+    const wx = positions[c * 3] - positions[a * 3];
+    const wz = positions[c * 3 + 2] - positions[a * 3 + 2];
+    const ny = uz * wx - ux * wz; // y-component of cross (u × w)
+    if (ny >= 0) indices.push(a, b, c, b, d, c);
+    else indices.push(a, c, b, c, d, b);
   }
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geom.setIndex(idx);
+  geom.setIndex(indices);
   geom.computeVertexNormals();
   return geom;
 }
 
-export function buildScene(scene) {
+export function buildScene(scene: THREE.Scene): { totalLen: number; samples: Sample[]; halfWidth: number } {
   const grassTex = grassTexture();
   const groundGeom = new THREE.PlaneGeometry(560, 460, 80, 64);
   groundGeom.rotateX(-Math.PI / 2);
@@ -211,10 +214,7 @@ export function buildScene(scene) {
 }
 
 // Cartoony fence + trees + start arch props to sell the setting.
-function addProps(scene) {
-  const woodTex = woodTexture();
-  const woodMat = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.8, metalness: 0 });
-
+function addProps(scene: THREE.Scene) {
   // white picket-style barrier on the outside shoulder, following the loop
   const barrierMat = new THREE.MeshStandardMaterial({ color: 0xf4ead8, roughness: 0.6, metalness: 0 });
   const outer = ROAD_HALF + 2.6;
@@ -237,9 +237,15 @@ function addProps(scene) {
   while (placed < 90) {
     const x = (rand() - 0.5) * 430;
     const z = (rand() - 0.5) * 350;
-    // keep clear of the road
-    const t = worldToTrack({ x, z });
-    if (Math.abs(t.lat) < ROAD_HALF + 6) continue;
+    // keep clear of the road: find the TRUE nearest sample (full scan, not the
+    // hint-windowed worldToTrack) so trees never land on the track.
+    let minD = Infinity;
+    for (const s of samples) {
+      const dx = x - s.x, dz = z - s.z;
+      const d = dx * dx + dz * dz;
+      if (d < minD) minD = d;
+    }
+    if (Math.sqrt(minD) < ROAD_HALF + 6) continue;
     const r = 0.9 + rand() * 1.6;
     const tree = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.22, r * 0.32, r * 1.4, 6), trunks);
@@ -248,7 +254,7 @@ function addProps(scene) {
     crown.position.y = r * 2.0;
     crown.scale.y = 1.15;
     tree.add(trunk, crown);
-    tree.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    tree.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
     tree.position.set(x, terrainHeight(x, z), z);
     tree.rotation.y = rand() * 6.28;
     scene.add(tree);
@@ -257,7 +263,7 @@ function addProps(scene) {
   addStartBanner(scene);
 }
 
-function addStartBanner(scene) {
+function addStartBanner(scene: THREE.Scene) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xff3b30, roughness: 0.5, metalness: 0 });
   const p = samples[0];
   const bx = p.x - p.tx * 6, bz = p.z - p.tz * 6;
@@ -272,7 +278,7 @@ function addStartBanner(scene) {
   beam.position.y = 4.9;
   beam.lookAt(new THREE.Vector3(bx + dirX * 1, 4.9, bz + dirZ * 1));
   g.add(left, right, beam);
-  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
   g.position.set(bx, terrainHeight(bx, bz), bz);
   g.rotation.y = Math.atan2(p.tx, p.tz);
   scene.add(g);

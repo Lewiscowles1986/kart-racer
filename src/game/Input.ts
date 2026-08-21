@@ -1,16 +1,27 @@
 // Unified input: keyboard + gamepad + touch steering controls.
 // Buttons are labelled as child-friendly actions (e.g. the Space bar = "ITEM!").
-export class Input {
-  constructor() {
-    this.steer = 0;      // -1..1
-    this.throttle = 0;   // 0..1
-    this.brake = false;  // also used to reverse / drift
-    this.itemHeld = false;
-    this.itemPressed = false; // edge-triggered
-    this._itemWasHeld = false;
 
-    this.keys = new Set();
-    this.touch = { left: false, right: false, boost: false, brake: false, item: false };
+export interface InputFrame {
+  steer: number;      // -1..1
+  throttle: number;   // 0..1
+  brake: boolean;
+  itemPressed: boolean;
+  itemHeld: boolean;
+}
+
+export type TouchAction = 'left' | 'right' | 'boost' | 'brake' | 'item';
+
+export class Input {
+  steer = 0;      // -1..1
+  throttle = 0;   // 0..1
+  brake = false;  // also used to reverse / drift
+  itemHeld = false;
+  itemPressed = false; // edge-triggered
+
+  keys: Record<string, boolean> = {};
+  touch: Record<TouchAction, boolean> = { left: false, right: false, boost: false, brake: false, item: false };
+
+  constructor() {
     this.bind();
   }
 
@@ -31,7 +42,7 @@ export class Input {
   resetFrame() { this.itemPressed = false; this.itemHeld = this.keys['Space'] || this.keys['Enter'] || this.touch.item; }
 
   // Touch controls are wired to on-screen buttons by HUD.
-  setTouch(action, down) {
+  setTouch(action: TouchAction, down: boolean) {
     if (action === 'left') this.touch.left = down;
     else if (action === 'right') this.touch.right = down;
     else if (action === 'boost') this.touch.boost = down;
@@ -39,13 +50,15 @@ export class Input {
     else if (action === 'item') { if (down) this._pressItem(); }
   }
 
-  read() {
+  read(): InputFrame {
     const left = this.keys['ArrowLeft'] || this.keys['KeyA'] || this.touch.left;
     const right = this.keys['ArrowRight'] || this.keys['KeyD'] || this.touch.right;
     const up = this.keys['ArrowUp'] || this.keys['KeyW'] || this.touch.boost;
     const down = this.keys['ArrowDown'] || this.keys['KeyS'] || this.touch.brake;
 
-    this.steer = (right ? 1 : 0) - (left ? 1 : 0);
+    // NOTE: the kart physics uses `yaw += steer`, and screen-right is -X, so
+    // pressing Right must yield steer = -1 (turns toward -X = right on screen).
+    this.steer = (left ? 1 : 0) - (right ? 1 : 0);
     this.throttle = up ? 1 : 0;
     this.brake = down;
     return {

@@ -1,11 +1,63 @@
+import * as THREE from 'three';
+import { minimapSamples } from './minimap';
+import type { TouchAction } from './Input';
+
 const POS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
-const ITEM_ICON = { banana: '🍌', mushroom: '🍄', star: '⭐' };
-import { minimapSamples } from './minimap.js';
+const ITEM_ICON: Record<string, string> = { banana: '🍌', mushroom: '🍄', star: '⭐' };
+
+interface KartDot {
+  x?: number;
+  z?: number;
+  color?: string;
+  isPlayer: boolean;
+}
+
+interface HudUpdate {
+  position: number;
+  lap: number;
+  timeMs: number;
+  item: string | null;
+  rouletteT?: number;
+  muted?: boolean;
+}
+
+interface Result {
+  name: string;
+  player: boolean;
+  timeMs: number | null;
+}
 
 // DOM overlay for everything the player reads at a glance. Kept fully separate
 // from the WebGL canvas so it stays crisp and accessible.
 export class HUD {
-  constructor(app) {
+  app: HTMLElement;
+  el: HTMLDivElement;
+  posEl!: HTMLElement;
+  timerEl!: HTMLElement;
+  lapEl!: HTMLElement;
+  itemEl!: HTMLElement;
+  map!: HTMLCanvasElement;
+  mctx!: CanvasRenderingContext2D;
+  countdownEl!: HTMLElement;
+  panelEl!: HTMLElement;
+  overlayEl!: HTMLElement;
+  controls!: HTMLElement;
+  muteBtn!: HTMLElement;
+  _cycleAccum = 0;
+  _cycleIcon = '';
+  kartDots: KartDot[] = [];
+  playerPos: THREE.Vector3 | undefined;
+  muted = false;
+
+  onTouch?: (act: TouchAction, down: boolean) => void;
+  onPause?: () => void;
+  onMute?: () => void;
+  onStart?: () => void;
+  onRestart?: () => void;
+  onResume?: () => void;
+  onQuit?: () => void;
+
+  constructor(app: HTMLElement) {
     this.app = app;
     this.el = document.createElement('div');
     this.el.id = 'hud';
@@ -40,21 +92,21 @@ export class HUD {
       <div class="center-overlay"><div class="panel"></div></div>
       ${this.#css()}
     `;
-    this.posEl = this.el.querySelector('.pos');
-    this.timerEl = this.el.querySelector('.timer');
-    this.lapEl = this.el.querySelector('.lap');
-    this.itemEl = this.el.querySelector('.item');
-    this.map = this.el.querySelector('.minimap');
-    this.mctx = this.map.getContext('2d');
-    this.countdownEl = this.el.querySelector('.countdown');
-    this.panelEl = this.el.querySelector('.panel');
-    this.overlayEl = this.el.querySelector('.center-overlay');
-    this.controls = this.el.querySelector('.controls');
+    this.posEl = this.el.querySelector('.pos') as HTMLElement;
+    this.timerEl = this.el.querySelector('.timer') as HTMLElement;
+    this.lapEl = this.el.querySelector('.lap') as HTMLElement;
+    this.itemEl = this.el.querySelector('.item') as HTMLElement;
+    this.map = this.el.querySelector('.minimap') as HTMLCanvasElement;
+    this.mctx = this.map.getContext('2d')!;
+    this.countdownEl = this.el.querySelector('.countdown') as HTMLElement;
+    this.panelEl = this.el.querySelector('.panel') as HTMLElement;
+    this.overlayEl = this.el.querySelector('.center-overlay') as HTMLElement;
+    this.controls = this.el.querySelector('.controls') as HTMLElement;
 
     // touch controls
-    const wire = (sel, act) => {
-      const b = this.el.querySelector(sel);
-      const down = (e) => { e.preventDefault(); this.onTouch && this.onTouch(act, true); };
+    const wire = (sel: string, act: TouchAction) => {
+      const b = this.el.querySelector(sel) as HTMLElement;
+      const down = (e: PointerEvent) => { e.preventDefault(); this.onTouch && this.onTouch(act, true); };
       const up = () => this.onTouch && this.onTouch(act, false);
       b.addEventListener('pointerdown', down);
       b.addEventListener('pointerup', up);
@@ -68,15 +120,15 @@ export class HUD {
     if ('ontouchstart' in window) this.controls.style.display = 'flex';
 
     // pause / mute buttons
-    this.el.querySelector('.hudbtn.pause').onclick = () => this.onPause && this.onPause();
-    this.el.querySelector('.hudbtn.mute').onclick = () => this.onMute && this.onMute();
-    this.muteBtn = this.el.querySelector('.hudbtn.mute');
+    (this.el.querySelector('.hudbtn.pause') as HTMLElement).onclick = () => this.onPause && this.onPause();
+    (this.el.querySelector('.hudbtn.mute') as HTMLElement).onclick = () => this.onMute && this.onMute();
+    this.muteBtn = this.el.querySelector('.hudbtn.mute') as HTMLElement;
     this._cycleAccum = 0;
     this._cycleIcon = '';
     this.kartDots = [];
   }
 
-  #css() {
+  #css(): string {
     return `<style>
       #hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Baloo 2',system-ui,sans-serif;user-select:none}
       .hud-top{position:absolute;top:16px;left:18px;right:18px;display:flex;align-items:center;gap:14px;text-shadow:0 2px 6px rgba(0,0,0,.5)}
@@ -120,17 +172,17 @@ export class HUD {
       <p class="hint">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
     `;
     this.overlayEl.classList.remove('hidden');
-    this.panelEl.querySelector('.start').onclick = () => this.onStart && this.onStart();
+    (this.panelEl.querySelector('.start') as HTMLElement).onclick = () => this.onStart && this.onStart();
   }
 
   hideOverlay() { this.overlayEl.classList.add('hidden'); }
 
-  setCountdown(text) {
+  setCountdown(text: string) {
     this.countdownEl.textContent = text;
-    if (!text) this.countdownEl.style.opacity = 0; else this.countdownEl.style.opacity = 1;
+    this.countdownEl.style.opacity = text ? '1' : '0';
   }
 
-  update({ position, lap, timeMs, item, rouletteT = 0, muted = false }) {
+  update({ position, lap, timeMs, item, rouletteT = 0, muted = false }: HudUpdate) {
     this.posEl.textContent = POS[position - 1] || `${position}th`;
     this.lapEl.textContent = `Lap ${Math.min(lap, 3)}/3`;
     const s = Math.floor(timeMs / 1000);
@@ -141,10 +193,10 @@ export class HUD {
       this._cycleAccum += 16;
       if (this._cycleAccum > 70) { this._cycleAccum = 0; this._cycleIcon = ['banana', 'mushroom', 'star'][Math.floor(Math.random() * 3)]; }
       this.itemEl.textContent = ITEM_ICON[this._cycleIcon] || '?';
-      this.itemEl.style.opacity = 1;
+      this.itemEl.style.opacity = '1';
     } else {
       this.itemEl.textContent = item ? ITEM_ICON[item] : '';
-      this.itemEl.style.opacity = item ? 1 : 0.25;
+      this.itemEl.style.opacity = item ? '1' : '0.25';
     }
     this.muted = muted;
     if (this.muteBtn) this.muteBtn.textContent = muted ? '🔇' : '🔊';
@@ -152,14 +204,15 @@ export class HUD {
   }
 
   drawMinimap() {
-    const ctx = this.mctx = this.mctx || this.map.getContext('2d');
+    const ctx = this.mctx || this.map.getContext('2d')!;
+    this.mctx = ctx;
     const W = this.map.width, H = this.map.height, pad = 8;
     const samples = minimapSamples();
     ctx.clearRect(0, 0, W, H);
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const s of samples) { minX = Math.min(minX, s[0]); maxX = Math.max(maxX, s[0]); minZ = Math.min(minZ, s[1]); maxZ = Math.max(maxZ, s[1]); }
-    const sx = (x) => pad + (x - minX) / (maxX - minX || 1) * (W - 2 * pad);
-    const sz = (z) => pad + (z - minZ) / (maxZ - minZ || 1) * (H - 2 * pad);
+    const sx = (x: number) => pad + (x - minX) / (maxX - minX || 1) * (W - 2 * pad);
+    const sz = (z: number) => pad + (z - minZ) / (maxZ - minZ || 1) * (H - 2 * pad);
     ctx.strokeStyle = '#cfe0ff';
     ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.beginPath();
@@ -169,24 +222,24 @@ export class HUD {
     for (const d of this.kartDots) {
       if (d.x === undefined) continue;
       ctx.fillStyle = d.isPlayer ? '#ffd23f' : d.color || '#fff';
-      ctx.beginPath(); ctx.arc(sx(d.x), sz(d.z), d.isPlayer ? 4.5 : 3, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx(d.x), sz(d.z!), d.isPlayer ? 4.5 : 3, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = d.isPlayer ? 1.5 : 0.8; ctx.stroke();
     }
   }
 
-  setPlayerPos(v) { this.playerPos = v; }
-  setKartDots(dots) { this.kartDots = dots; }
+  setPlayerPos(v: THREE.Vector3) { this.playerPos = v; }
+  setKartDots(dots: KartDot[]) { this.kartDots = dots; }
 
   showPause() {
     this.panelEl.innerHTML = `<h1>⏸ Paused</h1><p>Take a breath — the race is waiting.</p><button class="on">▶ Resume</button><button class="quit">🏠 Quit to Menu</button>`;
     this.overlayEl.classList.remove('hidden');
-    this.panelEl.querySelector('.on').onclick = () => this.onResume && this.onResume();
-    this.panelEl.querySelector('.quit').onclick = () => this.onQuit && this.onQuit();
+    (this.panelEl.querySelector('.on') as HTMLElement).onclick = () => this.onResume && this.onResume();
+    (this.panelEl.querySelector('.quit') as HTMLElement).onclick = () => this.onQuit && this.onQuit();
   }
   hidePause() { this.overlayEl.classList.add('hidden'); }
 
-  showFinish(results) {
-    const fmt = (ms) => {
+  showFinish(results: Result[]) {
+    const fmt = (ms: number) => {
       const s = Math.floor(ms / 1000), cs = Math.floor((ms % 1000) / 10);
       return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
     };
@@ -200,7 +253,7 @@ export class HUD {
     });
     this.panelEl.innerHTML = `<h1>🏁 Race Complete!</h1><h2>${results[0].player ? 'You won the Cup! 🏆' : 'Great race!'}</h2><ul class="results">${list}</ul><button class="on">▶ Race Again</button><button class="menu">🏠 Menu</button>`;
     this.overlayEl.classList.remove('hidden');
-    this.panelEl.querySelector('.on').onclick = () => this.onRestart && this.onRestart();
-    this.panelEl.querySelector('.menu').onclick = () => this.onQuit && this.onQuit();
+    (this.panelEl.querySelector('.on') as HTMLElement).onclick = () => this.onRestart && this.onRestart();
+    (this.panelEl.querySelector('.menu') as HTMLElement).onclick = () => this.onQuit && this.onQuit();
   }
 }

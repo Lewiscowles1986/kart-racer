@@ -1,9 +1,36 @@
 import * as THREE from 'three';
 
+interface SpawnOpts {
+  life?: number;
+  size?: number;
+  gravity?: number;
+}
+
+interface Ring {
+  mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  life: number;
+  max: number;
+}
+
 // Lightweight particle system + pooled visual FX: boost flames, drifting dust,
 // banana-slip stars, pickup sparkle rings. Single GPU Points buffer for perf.
 export class Effects {
-  constructor(scene, capacity = 1200) {
+  scene: THREE.Scene;
+  capacity: number;
+  cursor: number;
+  pos: Float32Array;
+  col: Float32Array;
+  vel: Float32Array;
+  life: Float32Array;   // 0 = dead
+  maxLife: Float32Array;
+  size: Float32Array;
+  gravity: Float32Array;
+
+  points: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  rings: Ring[];
+  ringMat: THREE.MeshBasicMaterial;
+
+  constructor(scene: THREE.Scene, capacity = 1200) {
     this.scene = scene;
     this.capacity = capacity;
     this.cursor = 0;
@@ -36,7 +63,7 @@ export class Effects {
     }
   }
 
-  spawn(pos, vel, color, opts = {}) {
+  spawn(pos: THREE.Vector3, vel: THREE.Vector3, color: THREE.Color, opts: SpawnOpts = {}) {
     const life = opts.life ?? 0.7;
     const i = this.cursor;
     this.cursor = (this.cursor + 1) % this.capacity;
@@ -49,7 +76,7 @@ export class Effects {
     this.gravity[i] = opts.gravity ?? 0;
   }
 
-  boost(pos, dir, color = new THREE.Color(1, 0.6, 0.2), n = 6) {
+  boost(pos: THREE.Vector3, dir: THREE.Vector3, color: THREE.Color = new THREE.Color(1, 0.6, 0.2), n = 6) {
     for (let k = 0; k < n; k++) {
       const v = new THREE.Vector3(
         -dir.x * (6 + Math.random() * 5),
@@ -64,7 +91,7 @@ export class Effects {
     }
   }
 
-  dust(pos, color = new THREE.Color(0.9, 0.85, 0.75), n = 4) {
+  dust(pos: THREE.Vector3, color: THREE.Color = new THREE.Color(0.9, 0.85, 0.75), n = 4) {
     for (let k = 0; k < n; k++) {
       this.spawn(
         pos, new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 3, (Math.random() - 0.5) * 4),
@@ -74,7 +101,7 @@ export class Effects {
     }
   }
 
-  spinStars(pos, n = 14) {
+  spinStars(pos: THREE.Vector3, n = 14) {
     const yellow = new THREE.Color(1, 0.9, 0.2);
     for (let k = 0; k < n; k++) {
       const a = Math.random() * 6.28, sp = 2 + Math.random() * 6;
@@ -85,7 +112,7 @@ export class Effects {
     }
   }
 
-  ring(pos, color, max = 2.4) {
+  ring(pos: THREE.Vector3, color: THREE.Color, max = 2.4) {
     const r = this.rings.find((x) => x.life <= 0) || this.rings[0];
     r.life = r.max = max;
     r.mesh.position.copy(pos);
@@ -93,9 +120,9 @@ export class Effects {
     r.mesh.visible = true;
   }
 
-  update(dt) {
+  update(dt: number) {
     const arr = this.pos, col = this.col, vel = this.vel, life = this.life;
-    const size = this.size, grav = this.gravity;
+    const grav = this.gravity;
     for (let i = 0; i < this.capacity; i++) {
       if (life[i] <= 0) continue;
       life[i] -= dt;
@@ -125,7 +152,7 @@ export class Effects {
   // Zero out a dead particle so it does not linger as a frozen glowing point.
   // y is pushed far below the ground so it can never be visible even if color
   // somehow survives; color and velocity are also cleared for buffer reuse.
-  _setZero(i) {
+  _setZero(i: number) {
     this.pos[i * 3] = 0; this.pos[i * 3 + 1] = -999; this.pos[i * 3 + 2] = 0;
     this.vel[i * 3] = 0; this.vel[i * 3 + 1] = 0; this.vel[i * 3 + 2] = 0;
     this.col[i * 3] = 0; this.col[i * 3 + 1] = 0; this.col[i * 3 + 2] = 0;

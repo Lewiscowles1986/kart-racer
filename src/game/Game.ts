@@ -1,30 +1,70 @@
 import * as THREE from 'three';
-import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA } from '../config.js';
-import { buildScene, ROAD_HALF, sampleAtU, worldToTrack } from '../track/track.js';
-import { skyboxTexture } from '../util/tex.js';
+import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA } from '../config';
+import { buildScene, ROAD_HALF, sampleAtU, worldToTrack } from '../track/track';
+import { skyboxTexture } from '../util/tex';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { Kart } from './Kart.js';
-import { Items } from './Items.js';
-import { Effects } from './Effects.js';
-import { AI } from './AI.js';
-import { HUD } from './HUD.js';
-import { Input } from './Input.js';
-import { Audio } from './Audio.js';
-import { createKartMesh } from './KartVisual.js';
+import { Kart, type Track, type World } from './Kart';
+import { Items } from './Items';
+import { Effects } from './Effects';
+import { AI } from './AI';
+import { HUD } from './HUD';
+import { Input } from './Input';
+import { Audio } from './Audio';
+import { createKartMesh } from './KartVisual';
+import type { InputFrame } from './Input';
 
-const DRIVER_STYLES = [
-  { name: 'You', body: 0xff3b30, accent: 0xffd23f, helmet: 0xffffff, driver: 0x3b82f6 },
-  { name: 'Tess', body: 0x4fd1c5, accent: 0xffffff, helmet: 0xf472b6, driver: 0x8b5cf6 },
-  { name: 'Marco', body: 0xf59e0b, accent: 0x111111, helmet: 0x34d399, driver: 0xf59e0b },
-  { name: 'Nia', body: 0x818cf8, accent: 0xffffff, helmet: 0xfb7185, driver: 0x22d3ee },
-  { name: 'Bruno', body: 0x34d399, accent: 0xffffff, helmet: 0xfbbf24, driver: 0xa3e635 },
-  { name: 'Ivy', body: 0xf472b6, accent: 0xffffff, helmet: 0x34d399, driver: 0xfb923c },
-  { name: 'Oscar', body: 0x38bdf8, accent: 0x1e293b, helmet: 0xfacc15, driver: 0x818cf8 },
-  { name: 'Lulu', body: 0xfacc15, accent: 0x1e293b, helmet: 0xfda4af, driver: 0x4ade80 },
+type GameState = 'MENU' | 'COUNTDOWN' | 'RACING' | 'FINISHED';
+
+interface DriverStyle {
+  name: string;
+  body: number;
+  accent: number;
+  helmet: number;
+  driver: number;
+  driverStyle: string;
+}
+
+const DRIVER_STYLES: DriverStyle[] = [
+  { name: 'You',   body: 0xff3b30, accent: 0xffd23f, helmet: 0xffffff, driver: 0x3b82f6, driverStyle: 'racer' },
+  { name: 'Tess',  body: 0x4fd1c5, accent: 0xffffff, helmet: 0xf472b6, driver: 0x8b5cf6, driverStyle: 'tall' },
+  { name: 'Marco', body: 0xf59e0b, accent: 0x111111, helmet: 0x34d399, driver: 0xf59e0b, driverStyle: 'monster' },
+  { name: 'Nia',   body: 0x818cf8, accent: 0xffffff, helmet: 0xfb7185, driver: 0x22d3ee, driverStyle: 'round' },
+  { name: 'Bruno', body: 0x34d399, accent: 0xffffff, helmet: 0xfbbf24, driver: 0xa3e635, driverStyle: 'big' },
+  { name: 'Ivy',   body: 0xf472b6, accent: 0xffffff, helmet: 0x34d399, driver: 0xfb923c, driverStyle: 'robot' },
+  { name: 'Oscar', body: 0x38bdf8, accent: 0x1e293b, helmet: 0xfacc15, driver: 0x818cf8, driverStyle: 'cap' },
+  { name: 'Lulu',  body: 0xfacc15, accent: 0x1e293b, helmet: 0xfda4af, driver: 0x4ade80, driverStyle: 'round' },
 ];
 
 export class Game {
-  constructor(app) {
+  app: HTMLElement;
+  world: World;
+  state: GameState;
+  timeMs: number;
+  totalLaps: number;
+
+  renderer!: THREE.WebGLRenderer;
+  camera!: THREE.PerspectiveCamera;
+  scene!: THREE.Scene;
+  track!: Track;
+  audio!: Audio;
+  input!: Input;
+  effects!: Effects;
+  items!: Items;
+  ai!: AI;
+  hud!: HUD;
+  karts!: Kart[];
+
+  raceTimeMs: number;
+  paused: boolean;
+  reduceMotion: boolean;
+  countdown = 0;
+  countdownAccum = 0;
+  clock!: THREE.Clock;
+  auto = false;
+  _finalLapShown = 0;
+  finishWait = 0;
+
+  constructor(app: HTMLElement) {
     this.app = app;
     this.world = this; // single facade so subsystems reach race/karts
     this.state = 'MENU';
@@ -67,7 +107,7 @@ export class Game {
 
   #setupRenderer() {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(RENDERER.pixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -146,7 +186,7 @@ export class Game {
     this.hud.onQuit = () => this.quitToMenu();
   }
 
-  get player() { return this.karts[0]; }
+  get player(): Kart { return this.karts[0]; }
 
   startRace() {
     this.audio.init();
@@ -230,7 +270,7 @@ export class Game {
     }
   }
 
-  #respawnCheck(dt) {
+  #respawnCheck(dt: number) {
     const limit = RACE.respawnTimeoutMs / 1000;
     const offroad = this.track.halfWidth + 12;
     for (const k of this.karts) {
@@ -254,9 +294,9 @@ export class Game {
     }
   }
 
-  #updateKarts(dt, canMove) {
+  #updateKarts(dt: number, canMove: boolean) {
     for (const kart of this.karts) {
-      let inp;
+      let inp: InputFrame;
       if (kart.isPlayer) {
         this.input.resetFrame();
         inp = this.auto ? this.ai.think(kart, dt) : this.input.read();
@@ -302,15 +342,15 @@ export class Game {
     this.state = 'FINISHED';
     this.audio.finish();
     const sorted = [...this.karts].sort((x, y) => (x.finishTime ?? Infinity) - (y.finishTime ?? Infinity));
-    this.hud.showFinish(sorted.map((k) => ({ name: k.name, player: k.isPlayer, timeMs: k.finishTime * 1000 })));
+    this.hud.showFinish(sorted.map((k) => ({ name: k.name, player: k.isPlayer, timeMs: k.finishTime! * 1000 })));
   }
 
   // Guarantee the race always ends: once the player crosses, wrap up stragglers.
-  #finishGuarantee(dt) {
+  #finishGuarantee(dt: number) {
     if (this.state !== 'RACING' || !this.player || !this.player.finished) return;
     this.finishWait = (this.finishWait || 0) + dt;
     if (this.finishWait > 6) {
-      const base = this.player.finishTime;
+      const base = this.player.finishTime!;
       let i = 1;
       for (const k of this.karts) {
         if (!k.finished) { k.finished = true; k.finishTime = base + i * 0.6; k.speed = 0; i++; }
@@ -336,14 +376,14 @@ export class Game {
     this.hud.drawMinimap();
   }
 
-  #updateCamera(dt) {
+  #updateCamera(dt: number) {
     const p = this.player;
     if (!p) return;
     const forward = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
     const boosting = p.boostT > 0 || p.starT > 0;
     const want = p.pos.clone().addScaledVector(forward, -CAMERA.distance).setY(p.pos.y + CAMERA.height);
     this.camera.position.lerp(want, Math.min(1, CAMERA.lerp * dt));
-    const look = p.pos.clone().addScaledVector(forward, CAMERA.lookAhead).setY(p.pos.y + 1.2);
+    const look = p.pos.clone().addScaledVector(forward, CAMERA.lookAhead).setY(p.pos.y + 0.6);
     this.camera.lookAt(look);
     const fov = CAMERA.fovBase + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, 5 * dt);
@@ -351,7 +391,7 @@ export class Game {
   }
 }
 
-function score(k) {
-  if (k.finished) return (RACE.kartCount + 1) * 1e9 + (1e9 - k.finishTime);
+function score(k: Kart): number {
+  if (k.finished) return (RACE.kartCount + 1) * 1e9 + (1e9 - k.finishTime!);
   return k.lap * 1e9 + k.dist;
 }

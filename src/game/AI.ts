@@ -1,6 +1,8 @@
-import { sampleAtU, worldToTrack } from '../track/track.js';
+import { sampleAtU } from '../track/track';
+import type { Kart, Track, World } from './Kart';
+import type { InputFrame } from './Input';
 
-function wrapAngle(a) {
+function wrapAngle(a: number): number {
   while (a > Math.PI) a -= 2 * Math.PI;
   while (a < -Math.PI) a += 2 * Math.PI;
   return a;
@@ -9,14 +11,16 @@ function wrapAngle(a) {
 // Friendly rubber-banded AI that races the track, steers through corners,
 // grabs item boxes and uses them at smart moments — never unfair, always fun.
 export class AI {
-  constructor({ track, world }) {
+  track: Track;
+  world: World;
+
+  constructor({ track, world }: { track: Track; world: World }) {
     this.track = track;
     this.world = world;
   }
 
   // Basic but convincing racing AI producing an Input-shaped object per frame.
-  think(kart, dt) {
-    const L = this.track.totalLen;
+  think(kart: Kart, dt: number): InputFrame {
     const u = kart.prevU;
     const look = 13;
     const p2 = sampleAtU(u + look).sample;
@@ -58,7 +62,7 @@ export class AI {
     return { steer, throttle, brake, itemPressed, itemHeld: false };
   }
 
-  #hasOpponentBehind(kart) {
+  #hasOpponentBehind(kart: Kart): boolean {
     const L = this.track.totalLen;
     for (const k of this.world.karts) {
       if (k === kart) continue;

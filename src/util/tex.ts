@@ -4,7 +4,9 @@ import * as THREE from 'three';
 // external art assets. Each function returns a CanvasTexture with repeat set.
 // We use a seeded RNG so the look is deterministic.
 
-function mulberry32(seed) {
+type Rng = () => number;
+
+function mulberry32(seed: number): Rng {
   return function () {
     let t = (seed += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -13,13 +15,13 @@ function mulberry32(seed) {
   };
 }
 
-function makeCanvas(size) {
+function makeCanvas(size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   return c;
 }
 
-function canvasTexture(c, repeatX = 1, repeatY = 1, colorSpace = true) {
+function canvasTexture(c: HTMLCanvasElement, repeatX = 1, repeatY = 1, colorSpace = true): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeatX, repeatY);
@@ -31,9 +33,9 @@ function canvasTexture(c, repeatX = 1, repeatY = 1, colorSpace = true) {
 
 // Soft, cartoony asphalt with subtle noise, painted edge lines and occasional
 // scuffs / oil stains — reads well at speed.
-export function asphaltTexture(seed = 7, size = 512) {
+export function asphaltTexture(seed = 7, size = 512): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   g.fillStyle = '#5a5e66';
   g.fillRect(0, 0, size, size);
@@ -78,9 +80,9 @@ export function asphaltTexture(seed = 7, size = 512) {
   return canvasTexture(c, 1, 1);
 }
 
-export function grassTexture(seed = 11, size = 512) {
+export function grassTexture(seed = 11, size = 512): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   g.fillStyle = '#67b64a';
   g.fillRect(0, 0, size, size);
@@ -106,15 +108,15 @@ export function grassTexture(seed = 11, size = 512) {
   // flower dots for cheer
   for (let i = 0; i < 60; i++) {
     const x = rnd() * size, y = rnd() * size, r = 1.5 + rnd() * 2;
-    g.fillStyle = ['#fff','#ffe066','#ff9ff3','#7ee8fa'][i % 4];
+    g.fillStyle = ['#fff', '#ffe066', '#ff9ff3', '#7ee8fa'][i % 4];
     g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
   }
   return canvasTexture(c, 6, 6);
 }
 
-export function dirtTexture(seed = 21, size = 256) {
+export function dirtTexture(seed = 21, size = 256): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   g.fillStyle = '#a87a4b';
   g.fillRect(0, 0, size, size);
@@ -133,9 +135,9 @@ export function dirtTexture(seed = 21, size = 256) {
 }
 
 // Red-and-white checker kerb.
-export function curbTexture(size = 64) {
+export function curbTexture(size = 64): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const sq = size / 4;
   for (let x = 0; x < 4; x++) {
     for (let y = 0; y < 4; y++) {
@@ -146,9 +148,9 @@ export function curbTexture(size = 64) {
   return canvasTexture(c, 8, 1);
 }
 
-export function sandTexture(seed = 33, size = 256) {
+export function sandTexture(seed = 33, size = 256): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   g.fillStyle = '#e3cf9a';
   g.fillRect(0, 0, size, size);
@@ -162,9 +164,9 @@ export function sandTexture(seed = 33, size = 256) {
   return canvasTexture(c, 5, 5);
 }
 
-export function skyboxTexture(seed = 5, size = 512) {
+export function skyboxTexture(seed = 5, size = 512): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   const grad = g.createLinearGradient(0, 0, 0, size);
   grad.addColorStop(0, '#2f6fd6');
@@ -189,10 +191,9 @@ export function skyboxTexture(seed = 5, size = 512) {
 }
 
 // Item box texture — a glowing question-style box (original, non-trademarked).
-export function itemBoxTexture(seed = 9, size = 256) {
+export function itemBoxTexture(_seed = 9, size = 256): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
-  const rnd = mulberry32(seed);
+  const g = c.getContext('2d')!;
   g.fillStyle = '#d99000';
   g.fillRect(0, 0, size, size);
   // bolt rivets
@@ -216,9 +217,9 @@ export function itemBoxTexture(seed = 9, size = 256) {
 }
 
 // Simple painted wood for fence/barrier/arch props.
-export function woodTexture(seed = 4, size = 128) {
+export function woodTexture(seed = 4, size = 128): THREE.CanvasTexture {
   const c = makeCanvas(size);
-  const g = c.getContext('2d');
+  const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
   g.fillStyle = '#8a5a33';
   g.fillRect(0, 0, size, size);
