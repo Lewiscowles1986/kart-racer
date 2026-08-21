@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kart Kingdom — a joyful 3D kart racer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0a0a16; font-family: 'Comic Sans MS', 'Baloo 2', system-ui, -apple-system, sans-serif; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; background: radial-gradient(circle at 50% 30%, #2a4f8f, #0a1a3a); font-size: 20px; letter-spacing: 2px; z-index: 50; transition: opacity .5s; }
+      #boot.hidden { opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="boot">🏎️ Kart Kingdom — loading…</div>
+    <div id="diag" style="display:none"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
