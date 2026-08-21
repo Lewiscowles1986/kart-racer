@@ -177,8 +177,10 @@ export class HUD {
       .panel .start{margin-top:18px;width:100%;font-size:24px;font-weight:800;padding:16px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 7px 0 #b87700,0 12px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
       .panel .start:hover{filter:brightness(1.05)}
       .panel .start:active{transform:translateY(5px);box-shadow:0 2px 0 #b87700,0 6px 14px rgba(0,0,0,.3)}
-      .controls-chip{margin:14px auto 0;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;font-size:13px;font-weight:600;background:rgba(0,0,0,.22);border-radius:12px;padding:9px 12px;color:#dfe6ee}
-      .controls-chip kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:26px;text-align:center;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
+      .controls-chip{margin:14px auto 0;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;background:rgba(0,0,0,.22);border-radius:12px;padding:10px 14px;color:#dfe6ee}
+      .controls-chip .ctl{display:flex;flex-direction:column;align-items:center;gap:3px}
+      .controls-chip .ctl kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:26px;text-align:center;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
+      .controls-chip .ctl em{font-style:normal;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.72;color:#c7d2e0}
       .tip{margin:10px auto 0;max-width:440px;font-size:13px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:7px 12px;line-height:1.4}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -219,10 +221,10 @@ export class HUD {
           <h3>🏁 Choose your track</h3>
           <div class="track-grid">${tracks}</div>
         </div>
-        <button class="start">▶ Start Race</button>
+        <button class="start">▶︎ Start Race</button>
         <div class="controls-chip">${touch
-          ? `<kbd>◀</kbd><kbd>▶</kbd> steer · <kbd>▲</kbd> gas · <kbd>▼</kbd> brake · <kbd>ITEM</kbd> item`
-          : `<kbd>W</kbd>/<kbd>↑</kbd> gas · <kbd>A</kbd>/<kbd>D</kbd> steer · <kbd>Space</kbd> item · <kbd>S</kbd> brake`}</div>
+          ? `<span class="ctl"><kbd>▲</kbd><em>gas</em></span><span class="ctl"><kbd>◀</kbd><kbd>▶</kbd><em>steer</em></span><span class="ctl"><kbd>ITEM</kbd><em>item</em></span><span class="ctl"><kbd>▼</kbd><em>brake</em></span>`
+          : `<span class="ctl"><kbd>W</kbd><em>gas</em></span><span class="ctl"><kbd>A</kbd><kbd>D</kbd><em>steer</em></span><span class="ctl"><kbd>Space</kbd><em>item</em></span><span class="ctl"><kbd>S</kbd><em>brake</em></span>`}</div>
         <p class="tip">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
       </div>
     `;
