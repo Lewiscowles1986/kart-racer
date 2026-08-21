@@ -165,11 +165,11 @@ export class HUD {
       .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
       .racer-grid{grid-template-columns:repeat(4,1fr)}
       .track-grid{grid-template-columns:repeat(3,1fr)}
-      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.15);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.26);background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.07));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 4px rgba(0,0,0,.12);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
       .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.13)}
       .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
-      .racer-token{width:46px;height:46px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
-      .racer-glyph{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+      .racer-token{width:50px;height:50px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
+      .racer-glyph{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:31px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35)}
       .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
