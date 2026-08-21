@@ -198,3 +198,19 @@ export const BOOST_PADS: { frac: number; lateral: number }[] = [
   { frac: 0.65, lateral: 0 },
   { frac: 0.84, lateral: 0 },
 ];
+
+// Jump physics: launching a kart into a parabolic arc.
+export const JUMP = {
+  vy: 17,         // initial vertical velocity on launch
+  gravity: 46,    // gravity acceleration while airborne
+  minSpeed: 12,   // minimum ground speed required to launch
+  airDrag: 1.4,   // fraction of speed kept per second while airborne
+};
+
+// Jump zones: fractions of arc length. Driving over one (fast enough) launches
+// the kart into the air; a visible ramp marks the take-off.
+export const JUMPS: { frac: number; lateral: number }[] = [
+  { frac: 0.20, lateral: 0 },
+  { frac: 0.55, lateral: 0 },
+  { frac: 0.90, lateral: 0 },
+];

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS } from '../config';
+import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS, JUMPS } from '../config';
 import { itemBoxTexture } from '../util/tex';
 import { terrainHeight } from '../track/track';
 import type { Kart, Track, World } from './Kart';
@@ -36,6 +36,7 @@ export class Items {
   boxes: ItemBox[];
   bananas: Banana[];
   pads: Pad[];
+  jumps: Pad[];
 
   constructor({ scene, track, world }: { scene: THREE.Scene; track: Track; world: World }) {
     this.scene = scene;
@@ -45,8 +46,10 @@ export class Items {
     this.boxes = [];
     this.bananas = [];
     this.pads = [];
+    this.jumps = [];
     this.buildBoxes();
     this.buildPads();
+    this.buildJumps();
   }
 
   buildBoxes() {
@@ -77,6 +80,19 @@ export class Items {
       pd.index = this.track.sampleAtU(u).index;
       this.placeOnTrack(pd.mesh, u, pd.lateral);
     }
+    for (const j of this.jumps) {
+      const u = j.frac * this.track.totalLen;
+      j.index = this.track.sampleAtU(u).index;
+      this.#placeJump(j.mesh, u, j.lateral);
+    }
+  }
+
+  #placeJump(group: THREE.Group, u: number, lateral: number) {
+    const { sample } = this.track.sampleAtU(u);
+    const x = sample.x + sample.nx * lateral;
+    const z = sample.z + sample.nz * lateral;
+    group.position.set(x, terrainHeight(x, z), z);
+    group.rotation.y = Math.atan2(sample.tx, sample.tz); // face the direction of travel
   }
 
   // Bright boost pads on the road surface. Driving onto one gives a moderate
@@ -100,6 +116,33 @@ export class Items {
       this.placeOnTrack(pad, u, lateral);
       this.scene.add(pad);
       this.pads.push({ mesh: pad, frac, lateral, index });
+    }
+  }
+
+  // Sloped launch ramps on the road. A kart driving over one (fast enough) is
+  // launched into the air by Kart.launch().
+  buildJumps() {
+    const topMat = new THREE.MeshStandardMaterial({ color: 0xe0a83f, emissive: 0x6a4a00, emissiveIntensity: 0.4, roughness: 0.6 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.8 });
+    for (const { frac, lateral } of JUMPS) {
+      const u = frac * this.track.totalLen;
+      const index = this.track.sampleAtU(u).index;
+      const ramp = new THREE.Group();
+      // sloped top surface rising toward +Z (the direction of travel)
+      const top = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 5.2), topMat);
+      top.rotation.x = -0.45;
+      top.position.y = 0.2;
+      ramp.add(top);
+      // side rails framing the launch
+      for (const s of [-1, 1]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 5.4), railMat);
+        rail.rotation.x = -0.45;
+        rail.position.set(s * 1.4, 0.22, 0);
+        ramp.add(rail);
+      }
+      this.#placeJump(ramp, u, lateral);
+      this.scene.add(ramp);
+      this.jumps.push({ mesh: ramp, frac, lateral, index });
     }
   }
 
@@ -176,6 +219,17 @@ export class Items {
         let di = Math.abs(t.index - pd.index);
         di = Math.min(di, M - di); // wrap around the loop
         if (di < 9 && Math.abs(t.lat) < 2.3) k.applyPad();
+      }
+    }
+
+    // jump ramps: a fast kart over one launches into the air (no-op if already up)
+    for (const j of this.jumps) {
+      for (const k of karts) {
+        if (k.finished || k.airborne) continue;
+        const t = this.track.worldToTrack(k.pos, k.trackHint);
+        let di = Math.abs(t.index - j.index);
+        di = Math.min(di, M - di);
+        if (di < 9 && Math.abs(t.lat) < 2.3) k.launch();
       }
     }
 

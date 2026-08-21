@@ -94,6 +94,8 @@ export class Audio {
   bananaHit() { this._tone(140, 0.35, 'square', 0.28, 60); this._tone(90, 0.3, 'square', 0.18, 50, 0.05); }
   slip() { this._tone(700, 0.4, 'sine', 0.18, 240); }
   hit() { this._tone(180, 0.25, 'square', 0.3, 80); }
+  jump() { this._tone(260, 0.3, 'sawtooth', 0.16, 640); this._tone(520, 0.3, 'triangle', 0.1, 900, 0.05); }
+  land() { this._tone(120, 0.2, 'sine', 0.24, 70); this._tone(90, 0.16, 'square', 0.14, 60, 0.03); }
   star() {
     for (let i = 0; i < 8; i++) this._tone(520 + i * 160, 0.16, 'triangle', 0.22, null, i * 0.12);
   }

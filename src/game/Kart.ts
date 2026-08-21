@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PHYS, TERRAIN, KART_SCALE, PAD } from '../config';
+import { PHYS, TERRAIN, KART_SCALE, PAD, JUMP } from '../config';
 import { terrainHeight, terrainNormal } from '../track/track';
 import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
@@ -61,6 +61,9 @@ export class Kart {
   shieldT: number;
   starT: number;
   padT: number;          // >0 while boosted by a track boost pad
+  airborne: boolean;     // true while launched in the air over a jump
+  vy: number;            // vertical velocity while airborne
+  airT: number;          // time spent airborne
   item: string | null;
 
   drifting: boolean;
@@ -100,6 +103,9 @@ export class Kart {
     this.shieldT = 0;
     this.starT = 0;
     this.padT = 0;
+    this.airborne = false;
+    this.vy = 0;
+    this.airT = 0;
     this.item = null;
 
     this.drifting = false;
@@ -189,9 +195,25 @@ export class Kart {
     this.padT = PAD.time;
   }
 
+  // Launch over a jump ramp if moving fast enough. A no-op if already airborne.
+  launch() {
+    if (this.airborne || Math.abs(this.speed) < JUMP.minSpeed) return;
+    this.airborne = true;
+    this.vy = JUMP.vy;
+    this.airT = 0;
+    this.world.audio.jump();
+    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.5), new THREE.Color(0xffd23f), 1.8);
+  }
+
   update(dt: number, input: InputFrame) {
     this.raceTime += dt;
-    this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
+    if (this.airborne) {
+      this.vy -= JUMP.gravity * dt;
+      this.pos.y += this.vy * dt;
+      this.airT += dt;
+    } else {
+      this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
+    }
 
     const t = this.track.worldToTrack(this.pos, this.trackHint);
     this.trackHint = t.index;
@@ -211,6 +233,10 @@ export class Kart {
     if (this.spinning > 0) {
       this.yaw += dt * 9;
       this.speed *= 0.9;
+    } else if (this.airborne) {
+      // in the air: keep forward momentum with mild drag, limited steering
+      this.speed *= (1 - JUMP.airDrag * dt);
+      this.yaw += steer * PHYS.turnRate * 0.45 * dt;
     } else {
       // throttle / brake
       if (throttle > 0) {
@@ -256,6 +282,17 @@ export class Kart {
     this.pos.z += fwd.z * this.speed * dt;
     this.pos.x = THREE.MathUtils.clamp(this.pos.x, -250, 250);
     this.pos.z = THREE.MathUtils.clamp(this.pos.z, -250, 250);
+
+    // landing: snap back onto the road once we've come back down
+    if (this.airborne) {
+      const groundY = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
+      if (this.pos.y <= groundY && this.vy <= 0) {
+        this.pos.y = groundY;
+        this.airborne = false; this.vy = 0; this.airT = 0;
+        this.world.audio.land();
+        this.world.effects.dust(this.pos.clone(), new THREE.Color(0.85, 0.8, 0.7), 8);
+      }
+    }
 
     // track progress + laps
     const t2 = this.track.worldToTrack(this.pos, this.trackHint);
@@ -308,10 +345,20 @@ export class Kart {
 
   #orient(dt: number, steer: number) {
     this.visualRoot.position.copy(this.pos);
-    const n = terrainNormal(this.pos.x, this.pos.z);
-    const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
-    const pitchQ = new THREE.Quaternion().setFromUnitVectors(UP, n);
-    let target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
+    let target: THREE.Quaternion;
+    if (this.airborne) {
+      // pitch from vertical velocity: nose up on ascent, nose down on descent
+      const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
+      const pitch = THREE.MathUtils.clamp(-this.vy * 0.045, -0.7, 0.65);
+      const side = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+      const pitchQ = new THREE.Quaternion().setFromAxisAngle(side, pitch);
+      target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
+    } else {
+      const n = terrainNormal(this.pos.x, this.pos.z);
+      const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
+      const pitchQ = new THREE.Quaternion().setFromUnitVectors(UP, n);
+      target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
+    }
     // add roll lean in local frame (into the turn)
     const rollQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), steer * 0.35);
     target = target.multiply(rollQ);
