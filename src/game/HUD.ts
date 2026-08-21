@@ -56,6 +56,14 @@ export class HUD {
   onRestart?: () => void;
   onResume?: () => void;
   onQuit?: () => void;
+  onSelectCharacter?: (i: number) => void;
+  onSelectMap?: (i: number) => void;
+
+  // menu data (set by Game before showing the menu)
+  characters: { name: string; color: string }[] = [];
+  maps: { id: string; name: string }[] = [];
+  selectedCharacter = 0;
+  selectedMap = 0;
 
   constructor(app: HTMLElement) {
     this.app = app;
@@ -147,11 +155,24 @@ export class HUD {
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
       .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,12,28,.55)}
       .center-overlay.hidden{display:none}
-      .panel{background:linear-gradient(180deg,#2b4a8f,#16305f);border-radius:24px;padding:34px 40px;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);pointer-events:auto;max-width:420px}
-      .panel h1{margin:0 0 6px;font-size:40px;letter-spacing:1px}
-      .panel h2{margin:0 0 18px;font-size:22px;font-weight:600;opacity:.9}
-      .panel button{margin-top:16px;font-size:22px;font-weight:800;padding:14px 34px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:#ffd23f;box-shadow:0 6px 0 #a86a00;transition:transform .08s}
-      .panel button:active{transform:translateY(4px);box-shadow:0 2px 0 #a86a00}
+      .panel{background:linear-gradient(180deg,#2b4a8f,#16305f);border-radius:24px;padding:34px 40px;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);pointer-events:auto;max-width:520px;max-height:92vh;overflow:auto}
+      .menu-title{margin:0 0 4px;font-size:46px;letter-spacing:1px;text-shadow:0 4px 0 rgba(0,0,0,.25)}
+      .menu-sub{margin:0 0 18px;font-size:18px;font-weight:600;opacity:.9}
+      .menu-section{margin:14px 0}
+      .menu-section h3{margin:0 0 10px;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.85}
+      .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
+      .racer-grid{grid-template-columns:repeat(4,1fr)}
+      .track-grid{grid-template-columns:repeat(2,1fr)}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;border:3px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s}
+      .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5)}
+      .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.18);box-shadow:0 0 0 2px #ffd23f}
+      .racer-dot{width:34px;height:34px;border-radius:50%;background:var(--c);box-shadow:inset 0 -4px 0 rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3)}
+      .racer-name{font-size:13px;font-weight:700}
+      .track-thumb{width:100%;height:44px;border-radius:8px;background:linear-gradient(135deg,#3fae5a,#1f7a3d);box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
+      .track-name{font-size:13px;font-weight:700}
+      .empty{opacity:.6;font-size:14px}
+      .panel .start{margin-top:18px;font-size:24px;font-weight:800;padding:14px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:#ffd23f;box-shadow:0 6px 0 #a86a00;transition:transform .08s}
+      .panel .start:active{transform:translateY(4px);box-shadow:0 2px 0 #a86a00}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
       .results .you{font-weight:800;color:#ffd23f}
@@ -163,19 +184,61 @@ export class HUD {
 
   showMenu() {
     const touch = 'ontouchstart' in window;
+    const racers = this.characters.length
+      ? this.characters.map((c, i) => `
+          <button class="racer ${i === this.selectedCharacter ? 'sel' : ''}" data-i="${i}" style="--c:${c.color}">
+            <span class="racer-dot"></span><span class="racer-name">${c.name}</span>
+          </button>`).join('')
+      : '<p class="empty">No racers</p>';
+    const tracks = this.maps.length
+      ? this.maps.map((m, i) => `
+          <button class="track ${i === this.selectedMap ? 'sel' : ''}" data-i="${i}">
+            <span class="track-thumb"></span><span class="track-name">${m.name}</span>
+          </button>`).join('')
+      : '<p class="empty">No tracks</p>';
     this.panelEl.innerHTML = `
-      <h1>🏎️ Kart Kingdom</h1>
-      <h2>A joyful 3D kart racer</h2>
-      <p>Win races, grab 🍌🍄⭐ and dodge banana peels.</p>
-      <button class="start">▶ Start Race</button>
-      <p class="hint">${touch ? '◀ ▶ steer · ▲ gas · ▼ brake (hold ▲+▼ to drift) · ITEM' : 'W/↑ gas · A/D steer · Space ITEM · S brake (hold W+S to drift)'}</p>
-      <p class="hint">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
+      <div class="menu">
+        <h1 class="menu-title">🏎️ Kart Kingdom</h1>
+        <p class="menu-sub">Pick your racer, pick your track, and go!</p>
+        <div class="menu-section">
+          <h3>Choose your racer</h3>
+          <div class="racer-grid">${racers}</div>
+        </div>
+        <div class="menu-section">
+          <h3>Choose your track</h3>
+          <div class="track-grid">${tracks}</div>
+        </div>
+        <button class="start">▶ Start Race</button>
+        <p class="hint">${touch ? '◀ ▶ steer · ▲ gas · ▼ brake (hold ▲+▼ to drift) · ITEM' : 'W/↑ gas · A/D steer · Space ITEM · S brake (hold W+S to drift)'}</p>
+        <p class="hint">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
+      </div>
     `;
     this.overlayEl.classList.remove('hidden');
     (this.panelEl.querySelector('.start') as HTMLElement).onclick = () => this.onStart && this.onStart();
+    this.panelEl.querySelectorAll('.racer').forEach((b) => {
+      b.addEventListener('click', () => {
+        const i = Number((b as HTMLElement).dataset.i);
+        this.selectedCharacter = i;
+        this.panelEl.querySelectorAll('.racer').forEach((x) => x.classList.toggle('sel', x === b));
+        this.onSelectCharacter && this.onSelectCharacter(i);
+      });
+    });
+    this.panelEl.querySelectorAll('.track').forEach((b) => {
+      b.addEventListener('click', () => {
+        const i = Number((b as HTMLElement).dataset.i);
+        this.selectedMap = i;
+        this.panelEl.querySelectorAll('.track').forEach((x) => x.classList.toggle('sel', x === b));
+        this.onSelectMap && this.onSelectMap(i);
+      });
+    });
   }
 
   hideOverlay() { this.overlayEl.classList.add('hidden'); }
+
+  setMenuData(characters: { name: string; color: string }[], maps: { id: string; name: string }[]) {
+    this.characters = characters;
+    this.maps = maps;
+  }
 
   // Race HUD (position/timer/minimap/touch controls) is only relevant while a
   // race is live. Keeping it hidden in MENU decouples the menu from the race UI.

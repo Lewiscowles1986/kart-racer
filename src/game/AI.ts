@@ -1,4 +1,3 @@
-import { sampleAtU } from '../track/track';
 import type { Kart, Track, World } from './Kart';
 import type { InputFrame } from './Input';
 
@@ -23,14 +22,14 @@ export class AI {
   think(kart: Kart, dt: number): InputFrame {
     const u = kart.prevU;
     const look = 13;
-    const p2 = sampleAtU(u + look).sample;
+    const p2 = this.track.sampleAtU(u + look).sample;
     const desiredYaw = Math.atan2(p2.x - kart.pos.x, p2.z - kart.pos.z);
     let dYaw = wrapAngle(desiredYaw - kart.yaw);
     let steer = Math.max(-1, Math.min(1, dYaw / 0.6));
 
     // curvature of the road ahead -> ease off the throttle for sharper bends
-    const a1 = Math.atan2(sampleAtU(u + look).sample.tx, sampleAtU(u + look).sample.tz);
-    const a2 = Math.atan2(sampleAtU(u + look * 2).sample.tx, sampleAtU(u + look * 2).sample.tz);
+    const a1 = Math.atan2(this.track.sampleAtU(u + look).sample.tx, this.track.sampleAtU(u + look).sample.tz);
+    const a2 = Math.atan2(this.track.sampleAtU(u + look * 2).sample.tx, this.track.sampleAtU(u + look * 2).sample.tz);
     const curve = Math.abs(wrapAngle(a2 - a1)) / look;
     let throttle = 1;
     const brake = false; // AI corners by lifting, never "brake" (avoids an unwanted drift)

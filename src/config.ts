@@ -123,21 +123,42 @@ export const WORLD: WorldConfig = {
   roadRes: 0.6,        // meters per sample along centerline
 };
 
-export const TRACK_POINTS: [number, number][] = [
-  [0, -44],
-  [34, -40],
-  [60, -18],
-  [66, 16],
-  [50, 42],
-  [22, 52],
-  [2, 44],
-  [-14, 60],
-  [-46, 60],
-  [-58, 34],
-  [-42, 10],
-  [-60, -14],
-  [-44, -36],
+export interface TrackDef {
+  id: string;
+  name: string;
+  points: [number, number][];
+}
+
+// Selectable tracks. Each is a closed Catmull-Rom loop; the first is the default.
+export const TRACKS: TrackDef[] = [
+  {
+    id: 'sunny',
+    name: 'Sunny Circuit',
+    points: [
+      [0, -44], [34, -40], [60, -18], [66, 16], [50, 42], [22, 52],
+      [2, 44], [-14, 60], [-46, 60], [-58, 34], [-42, 10], [-60, -14], [-44, -36],
+    ],
+  },
+  {
+    id: 'canyon',
+    name: 'Canyon Loop',
+    points: [
+      [0, -40], [24, -34], [34, -12], [22, 8], [34, 30], [12, 42],
+      [-12, 34], [-24, 12], [-12, -8], [-24, -30],
+    ],
+  },
+  {
+    id: 'coast',
+    name: 'Coastal Dash',
+    points: [
+      [0, -52], [44, -46], [72, -18], [72, 18], [44, 46], [0, 52],
+      [-44, 46], [-72, 18], [-72, -18], [-44, -46],
+    ],
+  },
 ];
+
+// Back-compat alias: the default track's points.
+export const TRACK_POINTS: [number, number][] = TRACKS[0].points;
 
 export const PLAYER = { index: 0 };
 

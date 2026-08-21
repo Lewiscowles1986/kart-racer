@@ -11,11 +11,20 @@ vi.mock('../src/util/tex', () => ({
   woodTexture: () => ({}),
 }));
 
-import { buildScene, worldToTrack, sampleAtU, terrainHeight, ROAD_HALF, onRoad } from '../src/track/track';
+import { buildScene, Track, terrainHeight, ROAD_HALF } from '../src/track/track';
+import { TRACKS, WORLD } from '../src/config';
+
+function makeTrack() {
+  const track = new Track(TRACKS[0].points, WORLD.roadWidth);
+  const scene = new THREE.Scene();
+  buildScene(scene, track);
+  return { track, scene };
+}
 
 describe('track geometry', () => {
   it('ROAD_HALF is positive and matches the config width', () => {
     expect(ROAD_HALF).toBeGreaterThan(0);
+    expect(ROAD_HALF).toBe(WORLD.roadWidth / 2);
   });
 
   it('terrainHeight is finite everywhere on the playfield', () => {
@@ -27,36 +36,45 @@ describe('track geometry', () => {
   });
 
   it('sampleAtU wraps around the closed loop', () => {
-    const scene = new THREE.Scene();
-    const { totalLen } = buildScene(scene);
-    const a = sampleAtU(0);
-    const b = sampleAtU(totalLen);
+    const { track } = makeTrack();
+    const a = track.sampleAtU(0);
+    const b = track.sampleAtU(track.totalLen);
     expect(a.sample.x).toBeCloseTo(b.sample.x, 1);
     expect(a.sample.z).toBeCloseTo(b.sample.z, 1);
   });
 
   it('worldToTrack reports ~0 lateral offset for a point on the centerline', () => {
-    const scene = new THREE.Scene();
-    const { samples } = buildScene(scene);
-    const idx = Math.floor(samples.length / 2);
-    const s = samples[idx];
-    const t = worldToTrack({ x: s.x, z: s.z }, idx);
+    const { track } = makeTrack();
+    const idx = Math.floor(track.samples.length / 2);
+    const s = track.samples[idx];
+    const t = track.worldToTrack({ x: s.x, z: s.z }, idx);
     expect(Math.abs(t.lat)).toBeLessThan(1.5);
+  });
+
+  it('each selectable track builds a closed loop with positive length', () => {
+    for (const def of TRACKS) {
+      const track = new Track(def.points, WORLD.roadWidth);
+      expect(track.totalLen).toBeGreaterThan(0);
+      expect(track.samples.length).toBeGreaterThan(0);
+      expect(track.halfWidth).toBe(WORLD.roadWidth / 2);
+      const a = track.sampleAtU(0);
+      const b = track.sampleAtU(track.totalLen);
+      expect(a.sample.x).toBeCloseTo(b.sample.x, 1);
+      expect(a.sample.z).toBeCloseTo(b.sample.z, 1);
+    }
   });
 });
 
 describe('track props (regression: trees must never sit on the road)', () => {
   it('no tree is placed on or near the road surface', () => {
-    const scene = new THREE.Scene();
-    buildScene(scene);
+    const { scene } = makeTrack();
 
-    // collect trees = groups that contain a sphere (crown)
+    // collect trees = groups whose direct child is a sphere (crown). The track
+    // root group now wraps everything, so we only match the per-tree groups.
     const trees = [];
     scene.traverse((o) => {
-      if (o.isGroup) {
-        let hasSphere = false;
-        o.traverse((c) => { if (c.isMesh && c.geometry.type === 'SphereGeometry') hasSphere = true; });
-        if (hasSphere) trees.push(o);
+      if (o.isGroup && o.children.some((c) => c.isMesh && c.geometry.type === 'SphereGeometry')) {
+        trees.push(o);
       }
     });
     expect(trees.length).toBeGreaterThan(0);

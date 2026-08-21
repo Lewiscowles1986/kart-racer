@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA } from '../config';
-import { buildScene, ROAD_HALF, sampleAtU, worldToTrack } from '../track/track';
+import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, TRACKS, WORLD } from '../config';
+import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { Kart, type Track, type World } from './Kart';
+import { Kart, type World } from './Kart';
 import { Items } from './Items';
 import { Effects } from './Effects';
 import { AI } from './AI';
@@ -46,6 +46,7 @@ export class Game {
   camera!: THREE.PerspectiveCamera;
   scene!: THREE.Scene;
   track!: Track;
+  trackGroup!: THREE.Group;
   audio!: Audio;
   input!: Input;
   effects!: Effects;
@@ -57,6 +58,8 @@ export class Game {
   raceTimeMs: number;
   paused: boolean;
   reduceMotion: boolean;
+  selectedCharacter = 0;
+  selectedMap = 0;
   countdown = 0;
   countdownAccum = 0;
   clock!: THREE.Clock;
@@ -157,8 +160,29 @@ export class Game {
   }
 
   #buildTrack() {
-    const { totalLen, samples } = buildScene(this.scene);
-    this.track = { totalLen, samples, halfWidth: ROAD_HALF, sampleAtU, worldToTrack };
+    this.track = new Track(TRACKS[this.selectedMap].points, WORLD.roadWidth);
+    this.trackGroup = buildScene(this.scene, this.track);
+  }
+
+  // Rebuild the track for the currently selected map, and point every subsystem
+  // (karts/items/ai) at the fresh Track so nothing keeps the old geometry.
+  #rebuildTrack() {
+    if (this.trackGroup) {
+      this.scene.remove(this.trackGroup);
+      this.trackGroup.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry?.dispose();
+          const m = mesh.material as THREE.Material | THREE.Material[];
+          if (Array.isArray(m)) m.forEach((x) => x.dispose());
+          else m?.dispose();
+        }
+      });
+    }
+    this.#buildTrack();
+    for (const k of this.karts) k.track = this.track;
+    if (this.items) this.items.track = this.track;
+    if (this.ai) this.ai.track = this.track;
   }
 
   #makeEntities() {
@@ -185,15 +209,32 @@ export class Game {
     this.hud.onMute = () => this.toggleMute();
     this.hud.onResume = () => this.togglePause();
     this.hud.onQuit = () => this.quitToMenu();
+    this.hud.setMenuData(
+      DRIVER_STYLES.map((s) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0') })),
+      TRACKS.map((t) => ({ id: t.id, name: t.name })),
+    );
+    this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; };
+    this.hud.onSelectMap = (i) => { this.selectedMap = i; };
   }
 
   get player(): Kart { return this.karts[0]; }
+
+  // Move the menu-selected character to the front so they become the player kart.
+  #applyPlayerSelection() {
+    const sel = this.selectedCharacter % this.karts.length;
+    if (sel === 0) return;
+    const [picked] = this.karts.splice(sel, 1);
+    this.karts.unshift(picked);
+    this.karts.forEach((k, i) => { k.isPlayer = i === 0; });
+  }
 
   startRace() {
     this.audio.init();
     this.audio.startMusic();
     this.hud.hideOverlay();
     this.hud.showRaceHud();
+    this.#applyPlayerSelection();
+    this.#rebuildTrack();
     const L = this.track.totalLen;
     const lat = [-2.6, 2.6, -1.4, 1.4, -3.6, 3.6, -0.4, 0.4];
     for (let i = 0; i < this.karts.length; i++) this.karts[i].placeAt(L - i * GRID_GAP, lat[i]);
@@ -267,7 +308,7 @@ export class Game {
     const d = document.getElementById('diag');
     if (d) {
       const p = this.player;
-      const t = worldToTrack(p.pos, p.trackHint);
+      const t = this.track.worldToTrack(p.pos, p.trackHint);
       d.textContent = JSON.stringify({ state: this.state, lap: p.lap, u: Math.round(p.prevU), lat: Math.round(t.lat), onRoad: p.onRoad, speed: Math.round(p.speed), karts: this.karts.map((k) => Math.round(k.prevU)) });
     }
   }
@@ -277,7 +318,7 @@ export class Game {
     const offroad = this.track.halfWidth + 12;
     for (const k of this.karts) {
       if (k.finished) continue;
-      const t = worldToTrack(k.pos, k.trackHint);
+      const t = this.track.worldToTrack(k.pos, k.trackHint);
       k.trackHint = t.index;
       if (Math.abs(t.lat) > offroad) k.respawnT += dt;
       else k.respawnT = 0;

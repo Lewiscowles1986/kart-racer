@@ -6,13 +6,14 @@ vi.mock('../src/util/tex', () => ({
   grassTexture: () => ({}), sandTexture: () => ({}), woodTexture: () => ({}),
 }));
 
-import { buildScene, sampleAtU } from '../src/track/track';
+import { buildScene, Track } from '../src/track/track';
+import { TRACKS, WORLD } from '../src/config';
 import { Kart } from '../src/game/Kart';
 
 function makeKart() {
   const scene = new THREE.Scene();
-  const { totalLen, samples, halfWidth } = buildScene(scene);
-  const track = { totalLen, samples, halfWidth, sampleAtU };
+  const track = new Track(TRACKS[0].points, WORLD.roadWidth);
+  buildScene(scene, track);
   const world = {
     effects: { boost() {}, dust() {}, spinStars() {}, ring() {} },
     audio: { lap() {}, slip() {}, hit() {}, boost() {} },
@@ -21,7 +22,7 @@ function makeKart() {
   };
   const visual = { root: new THREE.Group(), wheels: [], driver: new THREE.Group(), setShield() {} };
   const kart = new Kart({ index: 0, name: 'You', color: 0xff0000, accent: 0xffffff, track, world, visual });
-  return { kart, samples };
+  return { kart, samples: track.samples };
 }
 
 const input = (steer) => ({ steer, throttle: 1, brake: false, itemPressed: false, itemHeld: false });

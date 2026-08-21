@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PHYS, TERRAIN, KART_SCALE } from '../config';
-import { terrainHeight, terrainNormal, worldToTrack } from '../track/track';
+import { terrainHeight, terrainNormal } from '../track/track';
 import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
 import type { InputFrame } from './Input';
@@ -185,7 +185,7 @@ export class Kart {
     this.raceTime += dt;
     this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
 
-    const t = worldToTrack(this.pos, this.trackHint);
+    const t = this.track.worldToTrack(this.pos, this.trackHint);
     this.trackHint = t.index;
     this.onRoad = Math.abs(t.lat) <= this.track.halfWidth;
     this.terrainFactor = this.onRoad ? TERRAIN.road : TERRAIN.grass;
@@ -245,7 +245,7 @@ export class Kart {
     this.pos.z = THREE.MathUtils.clamp(this.pos.z, -250, 250);
 
     // track progress + laps
-    const t2 = worldToTrack(this.pos, this.trackHint);
+    const t2 = this.track.worldToTrack(this.pos, this.trackHint);
     this.trackHint = t2.index;
 
     // soft edge walls: let the kart run a little onto the grass, then gently
