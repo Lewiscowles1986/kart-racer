@@ -60,8 +60,8 @@ export class HUD {
   onSelectMap?: (i: number) => void;
 
   // menu data (set by Game before showing the menu)
-  characters: { name: string; color: string }[] = [];
-  maps: { id: string; name: string }[] = [];
+  characters: { name: string; color: string; style: string; glyph: string }[] = [];
+  maps: { id: string; name: string; color: [string, string] }[] = [];
   selectedCharacter = 0;
   selectedMap = 0;
 
@@ -155,24 +155,31 @@ export class HUD {
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
       .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,12,28,.55)}
       .center-overlay.hidden{display:none}
-      .panel{background:linear-gradient(180deg,#2b4a8f,#16305f);border-radius:24px;padding:34px 40px;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);pointer-events:auto;max-width:520px;max-height:92vh;overflow:auto}
-      .menu-title{margin:0 0 4px;font-size:46px;letter-spacing:1px;text-shadow:0 4px 0 rgba(0,0,0,.25)}
-      .menu-sub{margin:0 0 18px;font-size:18px;font-weight:600;opacity:.9}
-      .menu-section{margin:14px 0}
-      .menu-section h3{margin:0 0 10px;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.85}
+      .panel{background:linear-gradient(180deg,rgba(46,74,148,.88),rgba(18,32,66,.92));border-radius:24px;padding:30px 36px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.15);pointer-events:auto;max-width:620px;max-height:92vh;overflow:auto;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12)}
+      .menu-brand{display:flex;align-items:center;justify-content:center;gap:12px}
+      .brand-badge{width:56px;height:56px;border-radius:16px;background:radial-gradient(circle at 30% 25%,#ffe9a8,#ffd23f 55%,#e09f1f);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15)}
+      .menu-title{margin:0;font-size:42px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
+      .menu-sub{margin:8px 0 16px;font-size:17px;font-weight:600;opacity:.9}
+      .menu-section{margin:14px 0 6px}
+      .menu-section h3{margin:0 0 12px;font-size:18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}
       .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
       .racer-grid{grid-template-columns:repeat(4,1fr)}
       .track-grid{grid-template-columns:repeat(2,1fr)}
-      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;border:3px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s}
-      .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5)}
-      .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.18);box-shadow:0 0 0 2px #ffd23f}
-      .racer-dot{width:34px;height:34px;border-radius:50%;background:var(--c);box-shadow:inset 0 -4px 0 rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3)}
-      .racer-name{font-size:13px;font-weight:700}
-      .track-thumb{width:100%;height:44px;border-radius:8px;background:linear-gradient(135deg,#3fae5a,#1f7a3d);box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
-      .track-name{font-size:13px;font-weight:700}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
+      .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.12)}
+      .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
+      .racer-token{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,var(--c) 45%,rgba(0,0,0,.35) 150%);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:inset 0 -3px 8px rgba(0,0,0,.3),0 3px 8px rgba(0,0,0,.35)}
+      .racer-glyph{filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+      .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
+      .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .empty{opacity:.6;font-size:14px}
-      .panel .start{margin-top:18px;font-size:24px;font-weight:800;padding:14px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:#ffd23f;box-shadow:0 6px 0 #a86a00;transition:transform .08s}
-      .panel .start:active{transform:translateY(4px);box-shadow:0 2px 0 #a86a00}
+      .panel .start{margin-top:18px;width:100%;font-size:24px;font-weight:800;padding:16px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 7px 0 #b87700,0 12px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
+      .panel .start:hover{filter:brightness(1.05)}
+      .panel .start:active{transform:translateY(5px);box-shadow:0 2px 0 #b87700,0 6px 14px rgba(0,0,0,.3)}
+      .controls-chip{margin:14px auto 0;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;font-size:13px;font-weight:600;background:rgba(0,0,0,.22);border-radius:12px;padding:9px 12px;color:#dfe6ee}
+      .controls-chip kbd{background:#2a3550;border-radius:6px;padding:2px 7px;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12)}
+      .tip{margin:10px auto 0;max-width:440px;font-size:13px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:7px 12px;line-height:1.4}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
       .results .you{font-weight:800;color:#ffd23f}
@@ -187,30 +194,36 @@ export class HUD {
     const racers = this.characters.length
       ? this.characters.map((c, i) => `
           <button class="racer ${i === this.selectedCharacter ? 'sel' : ''}" data-i="${i}" style="--c:${c.color}">
-            <span class="racer-dot"></span><span class="racer-name">${c.name}</span>
+            <span class="racer-token"><span class="racer-glyph">${c.glyph}</span></span>
+            <span class="racer-name">${c.name}</span>
           </button>`).join('')
       : '<p class="empty">No racers</p>';
     const tracks = this.maps.length
       ? this.maps.map((m, i) => `
-          <button class="track ${i === this.selectedMap ? 'sel' : ''}" data-i="${i}">
+          <button class="track ${i === this.selectedMap ? 'sel' : ''}" data-i="${i}" style="--c1:${m.color[0]};--c2:${m.color[1]}">
             <span class="track-thumb"></span><span class="track-name">${m.name}</span>
           </button>`).join('')
       : '<p class="empty">No tracks</p>';
     this.panelEl.innerHTML = `
       <div class="menu">
-        <h1 class="menu-title">🏎️ Kart Kingdom</h1>
+        <div class="menu-brand">
+          <span class="brand-badge">🏎️</span>
+          <h1 class="menu-title">Kart Kingdom</h1>
+        </div>
         <p class="menu-sub">Pick your racer, pick your track, and go!</p>
         <div class="menu-section">
-          <h3>Choose your racer</h3>
+          <h3>🚩 Choose your racer</h3>
           <div class="racer-grid">${racers}</div>
         </div>
         <div class="menu-section">
-          <h3>Choose your track</h3>
+          <h3>🗺️ Choose your track</h3>
           <div class="track-grid">${tracks}</div>
         </div>
         <button class="start">▶ Start Race</button>
-        <p class="hint">${touch ? '◀ ▶ steer · ▲ gas · ▼ brake (hold ▲+▼ to drift) · ITEM' : 'W/↑ gas · A/D steer · Space ITEM · S brake (hold W+S to drift)'}</p>
-        <p class="hint">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
+        <div class="controls-chip">${touch
+          ? `<kbd>◀</kbd><kbd>▶</kbd> steer · <kbd>▲</kbd> gas · <kbd>▼</kbd> brake · <kbd>ITEM</kbd> item`
+          : `<kbd>W</kbd>/<kbd>↑</kbd> gas · <kbd>A</kbd>/<kbd>D</kbd> steer · <kbd>Space</kbd> item · <kbd>S</kbd> brake`}</div>
+        <p class="tip">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
       </div>
     `;
     this.overlayEl.classList.remove('hidden');
@@ -235,7 +248,7 @@ export class HUD {
 
   hideOverlay() { this.overlayEl.classList.add('hidden'); }
 
-  setMenuData(characters: { name: string; color: string }[], maps: { id: string; name: string }[]) {
+  setMenuData(characters: { name: string; color: string; style: string; glyph: string }[], maps: { id: string; name: string; color: [string, string] }[]) {
     this.characters = characters;
     this.maps = maps;
   }

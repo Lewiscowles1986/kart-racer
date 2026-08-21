@@ -209,9 +209,10 @@ export class Game {
     this.hud.onMute = () => this.toggleMute();
     this.hud.onResume = () => this.togglePause();
     this.hud.onQuit = () => this.quitToMenu();
+    const GLYPHS = ['🏎️', '🧢', '😈', '🎀', '🦸', '🤖', '🎩', '🌺'];
     this.hud.setMenuData(
-      DRIVER_STYLES.map((s) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0') })),
-      TRACKS.map((t) => ({ id: t.id, name: t.name })),
+      DRIVER_STYLES.map((s, i) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0'), style: s.driverStyle, glyph: GLYPHS[i] })),
+      TRACKS.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     );
     this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; };
     this.hud.onSelectMap = (i) => { this.selectedMap = i; };
