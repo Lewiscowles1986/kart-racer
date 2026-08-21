@@ -195,7 +195,7 @@ export class HUD {
       .controls-chip .ctl{display:flex;flex-direction:column;align-items:center;gap:3px}
       .controls-chip .ctl kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:24px;text-align:center;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
       .controls-chip .ctl em{font-style:normal;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.72;color:#c7d2e0}
-      .tip{margin:8px auto 0;max-width:440px;font-size:12px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:6px 12px;line-height:1.4}
+      .tip{margin:8px auto 0;max-width:440px;font-size:12px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.22);border-radius:10px;padding:6px 12px;line-height:1.4}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
       .results .you{font-weight:800;color:#ffd23f}

@@ -22,8 +22,8 @@ export class RacerPreview {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
-    this.camera.position.set(0, 1.0, 2.2);
-    this.camera.lookAt(0, 0.42, 0);
+    this.camera.position.set(0, 0.92, 1.9);
+    this.camera.lookAt(0, 0.38, 0);
 
     const key = new THREE.DirectionalLight(0xfff2dc, 2.0);
     key.position.set(4, 6, 5);
