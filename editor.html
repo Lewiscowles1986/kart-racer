@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kart Kingdom — Track Editor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0a0a16; font-family: 'Comic Sans MS', 'Baloo 2', system-ui, -apple-system, sans-serif; color: #eaf1ff; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #panel { position: fixed; top: 12px; left: 12px; width: 240px; background: rgba(13,20,38,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(10px); z-index: 10; }
+      #panel h1 { margin: 0 0 4px; font-size: 18px; color: #ffd23f; letter-spacing: .5px; }
+      #panel .sub { margin: 0 0 10px; font-size: 12px; opacity: .75; }
+      #panel label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 1px; color: #bcd0ff; }
+      #panel input[type=text] { width: 100%; box-sizing: border-box; padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.3); color: #fff; font-size: 14px; }
+      .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .palette button { padding: 9px 6px; border-radius: 9px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .12s, transform .05s; }
+      .palette button:hover { background: rgba(255,255,255,.16); }
+      .palette button.active { background: #ffd23f; color: #141a2c; border-color: #ffd23f; }
+      .tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
+      .tools button { padding: 8px 4px; border-radius: 9px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+      .tools button.active { background: #4fd1c5; color: #0d1426; border-color: #4fd1c5; }
+      .row { display: flex; gap: 6px; margin-top: 10px; }
+      .row button { flex: 1; padding: 9px 6px; border-radius: 9px; border: none; font-size: 13px; font-weight: 800; cursor: pointer; }
+      .row .export { background: #22c55e; color: #fff; }
+      .row .import { background: #38bdf8; color: #fff; }
+      .row .load { background: #f59e0b; color: #fff; }
+      #status { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(13,20,38,.85); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 7px 14px; font-size: 13px; z-index: 10; pointer-events: none; }
+      #help { position: fixed; bottom: 12px; right: 12px; background: rgba(13,20,38,.7); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 9px 12px; font-size: 11px; line-height: 1.6; opacity: .85; z-index: 10; }
+      #help b { color: #ffd23f; }
+      #counts { position: fixed; top: 12px; right: 12px; background: rgba(13,20,38,.7); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 8px 12px; font-size: 12px; z-index: 10; }
+      #counts span { font-weight: 800; color: #ffd23f; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="panel">
+      <h1>🛠️ Track Editor</h1>
+      <p class="sub">Reuses the racing engine — reshape the road, place objects, export a level.</p>
+      <label>Track name</label>
+      <input type="text" id="name" value="My Track" />
+      <label>Add object</label>
+      <div class="palette">
+        <button data-type="box">? Item Box</button>
+        <button data-type="pad">⚡ Boost Pad</button>
+        <button data-type="jump">🦘 Jump Ramp</button>
+        <button data-type="tree">🌳 Tree</button>
+      </div>
+      <label>Tool</label>
+      <div class="tools">
+        <button data-tool="place" class="active">✏️ Place</button>
+        <button data-tool="select">👆 Select</button>
+        <button data-tool="road">🛣️ Road</button>
+      </div>
+      <div class="row">
+        <button class="export">💾 Export JSON</button>
+        <button class="import">📂 Import</button>
+      </div>
+      <div class="row">
+        <button class="load">▶ Load in Game</button>
+      </div>
+    </div>
+    <div id="counts">Boxes <span id="c-box">0</span> · Pads <span id="c-pad">0</span> · Jumps <span id="c-jump">0</span> · Trees <span id="c-tree">0</span></div>
+    <div id="help">
+      <b>Drag</b> rotate · <b>Wheel</b> zoom · <b>Right-drag</b> pan<br/>
+      <b>Place</b>: click to add selected object<br/>
+      <b>Select</b>: click object, <b>Del</b> remove, drag to move<br/>
+      <b>Road</b>: drag a dot to reshape the track
+    </div>
+    <div id="status">Ready</div>
+    <input type="file" id="file" accept="application/json,.json" style="display:none" />
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>
