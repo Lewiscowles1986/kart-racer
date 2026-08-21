@@ -173,6 +173,8 @@ export class HUD {
       .racer-token{width:50px;height:50px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
       .racer-glyph{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:31px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35)}
       .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .racer-preview-box{margin:12px auto 0;width:150px;height:150px}
+      .racer-preview{width:150px;height:150px;display:block;background:radial-gradient(circle at 50% 42%,rgba(40,60,110,.55),rgba(10,16,30,.85));border-radius:14px;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 18px rgba(0,0,0,.35)}
       .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .track-preview{margin-top:12px;display:flex;align-items:center;gap:14px;text-align:left;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 14px}
@@ -223,6 +225,9 @@ export class HUD {
         <div class="menu-section">
           <h3>🚩 Choose your racer</h3>
           <div class="racer-grid">${racers}</div>
+          <div class="racer-preview-box">
+            <canvas class="racer-preview" width="140" height="140"></canvas>
+          </div>
         </div>
         <div class="menu-section">
           <h3>🏁 Choose your track</h3>
@@ -269,6 +274,10 @@ export class HUD {
   setMenuData(characters: { name: string; color: string; style: string; glyph: string }[], maps: { id: string; name: string; desc: string; color: [string, string]; points: [number, number][] }[]) {
     this.characters = characters;
     this.maps = maps;
+  }
+
+  getRacerPreviewCanvas(): HTMLCanvasElement | null {
+    return this.panelEl.querySelector('.racer-preview') as HTMLCanvasElement | null;
   }
 
   // Race HUD (position/timer/minimap/touch controls) is only relevant while a

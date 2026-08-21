@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, TRACKS, WORLD } from '../config';
+import { RacerPreview } from './RacerPreview';
 import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -60,6 +61,7 @@ export class Game {
   reduceMotion: boolean;
   selectedCharacter = 0;
   selectedMap = 0;
+  racerPreview: RacerPreview | null = null;
   countdown = 0;
   countdownAccum = 0;
   clock!: THREE.Clock;
@@ -107,6 +109,7 @@ export class Game {
     this.hud.hideRaceHud();
     this.state = 'MENU';
     this.hud.showMenu();
+    this.#showMenuPreview();
   }
 
   #setupRenderer() {
@@ -157,6 +160,25 @@ export class Game {
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.55;
     pmrem.dispose();
+  }
+
+  #showMenuPreview() {
+    this.#hideMenuPreview();
+    const canvas = this.hud.getRacerPreviewCanvas();
+    if (!canvas) return;
+    this.racerPreview = new RacerPreview(canvas);
+    this.#setPreviewCharacter();
+  }
+
+  // Rebuild the 3D kart shown in the menu to match the currently selected racer.
+  #setPreviewCharacter() {
+    if (!this.racerPreview) return;
+    const s = DRIVER_STYLES[this.selectedCharacter];
+    this.racerPreview.setCharacter({ bodyColor: s.body, accent: s.accent, helmet: s.helmet, driverColor: s.driver, driverStyle: s.driverStyle });
+  }
+
+  #hideMenuPreview() {
+    if (this.racerPreview) { this.racerPreview.stop(); this.racerPreview = null; }
   }
 
   #buildTrack() {
@@ -217,7 +239,7 @@ export class Game {
       DRIVER_STYLES.map((s, i) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0'), style: s.driverStyle, glyph: GLYPHS[i] })),
       TRACKS.map((t) => ({ id: t.id, name: t.name, desc: t.desc, color: t.color, points: t.points })),
     );
-    this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; };
+    this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; this.#setPreviewCharacter(); };
     this.hud.onSelectMap = (i) => { this.selectedMap = i; };
   }
 
@@ -233,6 +255,7 @@ export class Game {
   }
 
   startRace() {
+    this.#hideMenuPreview();
     this.audio.init();
     this.audio.startMusic();
     this.hud.hideOverlay();
@@ -272,7 +295,7 @@ export class Game {
     this.clock = new THREE.Clock();
     this.auto = new URLSearchParams(location.search).has('auto');
     if (this.auto) this.startRace();
-    else { this.hud.hideRaceHud(); this.hud.showMenu(); }
+    else { this.hud.hideRaceHud(); this.hud.showMenu(); this.#showMenuPreview(); }
     requestAnimationFrame(this.#loop);
   }
 
