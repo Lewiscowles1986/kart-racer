@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, TRACKS, WORLD } from '../config';
+import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD } from '../config';
 import { RacerPreview } from './RacerPreview';
 import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
@@ -63,6 +63,7 @@ export class Game {
   selectedMap = 0;
   racerPreview: RacerPreview | null = null;
   builtMap = -1; // the map the current track geometry is built for
+  cameraMode = 0; // index into CAMERA_MODES
   countdown = 0;
   countdownAccum = 0;
   clock!: THREE.Clock;
@@ -92,7 +93,17 @@ export class Game {
       if (e.code === 'Escape' || e.code === 'KeyP') this.togglePause();
       else if (e.code === 'KeyM') this.toggleMute();
       else if (e.code === 'KeyQ') this.quitToMenu();
+      else if (e.code === 'KeyC') this.cycleCamera();
     });
+  }
+
+  // Cycle the player camera through the available modes, showing the new mode.
+  cycleCamera() {
+    if (this.cameraMode < 0) this.cameraMode = 0;
+    this.cameraMode = (this.cameraMode + 1) % CAMERA_MODES.length;
+    const m = CAMERA_MODES[this.cameraMode];
+    this.hud && this.hud.showCameraMode(m.name);
+    if (this.audio) this.audio.pickup();
   }
 
   togglePause() {
@@ -474,13 +485,24 @@ export class Game {
   #updateCamera(dt: number) {
     const p = this.player;
     if (!p) return;
+    const m = CAMERA_MODES[this.cameraMode] ?? CAMERA_MODES[0];
     const forward = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
     const boosting = p.boostT > 0 || p.starT > 0;
-    const want = p.pos.clone().addScaledVector(forward, -CAMERA.distance).setY(p.pos.y + CAMERA.height);
+
+    let want: THREE.Vector3;
+    let look: THREE.Vector3;
+    if (m.overhead) {
+      // bird's-eye: hover straight above the kart, looking straight down
+      want = p.pos.clone().setY(p.pos.y + m.height);
+      look = p.pos.clone().addScaledVector(forward, 0).setY(p.pos.y);
+    } else {
+      want = p.pos.clone().addScaledVector(forward, -m.distance).setY(p.pos.y + m.height);
+      look = p.pos.clone().addScaledVector(forward, m.lookAhead).setY(p.pos.y + 0.6);
+    }
+
     this.camera.position.lerp(want, Math.min(1, CAMERA.lerp * dt));
-    const look = p.pos.clone().addScaledVector(forward, CAMERA.lookAhead).setY(p.pos.y + 0.6);
     this.camera.lookAt(look);
-    const fov = CAMERA.fovBase + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0);
+    const fov = m.fov + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, 5 * dt);
     this.camera.updateProjectionMatrix();
   }

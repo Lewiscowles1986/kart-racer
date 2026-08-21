@@ -104,6 +104,27 @@ export const CAMERA: CameraConfig = {
   lerp: 6.0,
 };
 
+export type CameraMode = 'chase' | 'close' | 'hood' | 'overhead';
+
+export interface CameraModeDef {
+  id: CameraMode;
+  name: string;
+  height: number;
+  distance: number;   // behind the kart; negative = slightly ahead (hood)
+  lookAhead: number;  // where the camera looks down the road
+  fov: number;
+  overhead?: boolean; // place the camera directly above, looking straight down
+}
+
+// Selectable camera modes, cycled with C. The race camera lerps between the
+// player's kart and these target offsets.
+export const CAMERA_MODES: CameraModeDef[] = [
+  { id: 'chase', name: 'Chase', height: 2.1, distance: 3.7, lookAhead: 3.5, fov: 62 },
+  { id: 'close', name: 'Close', height: 1.7, distance: 2.1, lookAhead: 5.5, fov: 70 },
+  { id: 'hood', name: 'Hood', height: 1.1, distance: -0.4, lookAhead: 8.0, fov: 78 },
+  { id: 'overhead', name: 'Overhead', height: 26, distance: 0, lookAhead: 0, fov: 52, overhead: true },
+];
+
 // Kart visual + physics scale. The models are authored ~4m long; this shrinks
 // them (and the collision radius / ride height) so they read as small karts on
 // the wide road. Steering turn rate is unchanged — a smaller kart already turns

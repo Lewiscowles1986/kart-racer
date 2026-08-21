@@ -81,6 +81,7 @@ export class HUD {
         <div class="pos-badge"><span class="pos"></span></div>
         <div class="timer"></div>
         <div class="lap"></div>
+        <div class="cam-chip">Cam: <span class="cam-name">Chase</span></div>
         <div class="hud-buttons">
           <button class="hudbtn mute">🔊</button>
           <button class="hudbtn pause">⏸</button>
@@ -142,6 +143,7 @@ export class HUD {
     return `<style>
       #hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Baloo 2',system-ui,sans-serif;user-select:none}
       .hud-top{position:absolute;top:16px;left:18px;right:18px;display:flex;align-items:center;gap:14px;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+      .cam-chip{margin-left:auto;font-size:13px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(15,23,42,.45);border:1px solid rgba(255,255,255,.18);color:#ffe9b0;letter-spacing:.5px}
       .hud-bottom{position:absolute;bottom:16px;left:18px;right:18px;display:flex;align-items:flex-end;justify-content:space-between}
       .pos-badge{background:rgba(20,26,46,.72);color:#fff;border-radius:14px;padding:8px 16px;font-size:30px;font-weight:800;backdrop-filter:blur(4px)}
       .timer{background:rgba(20,26,46,.72);color:#ffe08a;border-radius:12px;padding:8px 18px;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -296,6 +298,11 @@ export class HUD {
   setCountdown(text: string) {
     this.countdownEl.textContent = text;
     this.countdownEl.style.opacity = text ? '1' : '0';
+  }
+
+  showCameraMode(name: string) {
+    const n = this.el.querySelector('.cam-name');
+    if (n) n.textContent = name;
   }
 
   update({ position, lap, timeMs, item, rouletteT = 0, muted = false }: HudUpdate) {
