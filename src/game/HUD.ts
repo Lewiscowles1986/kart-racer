@@ -159,7 +159,10 @@ export class HUD {
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
       .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,rgba(255,190,120,.20),transparent 58%),radial-gradient(ellipse at 50% 50%,rgba(10,16,34,.58),rgba(6,10,22,.66))}
       .center-overlay.hidden{display:none}
-      .panel{background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:22px;padding:20px 26px 26px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:600px;max-height:94vh;overflow:auto;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
+      .panel{display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:22px;padding:20px 26px 18px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:600px;max-height:94vh;overflow:hidden;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
+      .menu{display:flex;flex-direction:column;flex:1;min-height:0}
+      .menu-main{overflow-y:auto;flex:1 1 auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}
+      .menu-footer{flex:0 0 auto;margin-top:14px}
       .menu-brand{display:flex;align-items:center;justify-content:center;gap:10px}
       .brand-badge{width:46px;height:46px;border-radius:14px;background:radial-gradient(circle at 30% 25%,#ffe9a8,#ffd23f 55%,#e09f1f);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15)}
       .menu-title{margin:0;font-size:34px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
@@ -188,7 +191,7 @@ export class HUD {
       .panel .start{margin-top:12px;width:100%;font-size:21px;font-weight:800;padding:11px 40px;border:0;border-radius:15px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 6px 0 #b87700,0 10px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
       .panel .start:hover{filter:brightness(1.05)}
       .panel .start:active{transform:translateY(5px);box-shadow:0 2px 0 #b87700,0 6px 14px rgba(0,0,0,.3)}
-      .controls-chip{margin:10px auto 0;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:center;font-size:11px;background:rgba(0,0,0,.22);border-radius:12px;padding:7px 12px;color:#dfe6ee}
+      .controls-chip{margin:10px auto 0;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:center;font-size:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 12px;color:#dfe6ee}
       .controls-chip .ctl{display:flex;flex-direction:column;align-items:center;gap:3px}
       .controls-chip .ctl kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:24px;text-align:center;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
       .controls-chip .ctl em{font-style:normal;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.72;color:#c7d2e0}
@@ -219,34 +222,38 @@ export class HUD {
       : '<p class="empty">No tracks</p>';
     this.panelEl.innerHTML = `
       <div class="menu">
-        <div class="menu-brand">
-          <span class="brand-badge">🏎️</span>
-          <h1 class="menu-title">Kart Kingdom</h1>
-        </div>
-        <p class="menu-sub">Pick your racer, pick your track, and go!</p>
-        <div class="menu-section">
-          <h3>🚩 Choose your racer</h3>
-          <div class="racer-row">
-            <canvas class="racer-preview" width="140" height="140"></canvas>
-            <div class="racer-grid">${racers}</div>
+        <div class="menu-main">
+          <div class="menu-brand">
+            <span class="brand-badge">🏎️</span>
+            <h1 class="menu-title">Kart Kingdom</h1>
           </div>
-        </div>
-        <div class="menu-section">
-          <h3>🏁 Choose your track</h3>
-          <div class="track-grid">${tracks}</div>
-          <div class="track-preview">
-            <canvas class="tp-canvas" width="150" height="150"></canvas>
-            <div class="tp-info">
-              <h4 class="tp-name"></h4>
-              <p class="tp-desc"></p>
+          <p class="menu-sub">Pick your racer, pick your track, and go!</p>
+          <div class="menu-section">
+            <h3>🚩 Choose your racer</h3>
+            <div class="racer-row">
+              <canvas class="racer-preview" width="140" height="140"></canvas>
+              <div class="racer-grid">${racers}</div>
+            </div>
+          </div>
+          <div class="menu-section">
+            <h3>🏁 Choose your track</h3>
+            <div class="track-grid">${tracks}</div>
+            <div class="track-preview">
+              <canvas class="tp-canvas" width="150" height="150"></canvas>
+              <div class="tp-info">
+                <h4 class="tp-name"></h4>
+                <p class="tp-desc"></p>
+              </div>
             </div>
           </div>
         </div>
-        <button class="start">▶︎ Start Race</button>
-        <div class="controls-chip">${touch
-          ? `<span class="ctl"><kbd>▲</kbd><em>gas</em></span><span class="ctl"><kbd>◀</kbd><kbd>▶</kbd><em>steer</em></span><span class="ctl"><kbd>ITEM</kbd><em>item</em></span><span class="ctl"><kbd>▼</kbd><em>brake</em></span>`
-          : `<span class="ctl"><kbd>W</kbd><em>gas</em></span><span class="ctl"><kbd>A</kbd><kbd>D</kbd><em>steer</em></span><span class="ctl"><kbd>Space</kbd><em>item</em></span><span class="ctl"><kbd>S</kbd><em>brake</em></span>`}</div>
-        <p class="tip">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
+        <div class="menu-footer">
+          <button class="start">▶︎ Start Race</button>
+          <div class="controls-chip">${touch
+            ? `<span class="ctl"><kbd>▲</kbd><em>gas</em></span><span class="ctl"><kbd>◀</kbd><kbd>▶</kbd><em>steer</em></span><span class="ctl"><kbd>ITEM</kbd><em>item</em></span><span class="ctl"><kbd>▼</kbd><em>brake</em></span>`
+            : `<span class="ctl"><kbd>W</kbd><em>gas</em></span><span class="ctl"><kbd>A</kbd><kbd>D</kbd><em>steer</em></span><span class="ctl"><kbd>Space</kbd><em>item</em></span><span class="ctl"><kbd>S</kbd><em>brake</em></span>`}</div>
+          <p class="tip">💡 Hold brake while turning fast to charge a mini-turbo boost!</p>
+        </div>
       </div>
     `;
     this.overlayEl.classList.remove('hidden');
