@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RACE, PHYS, TERRAIN, ITEM, CAMERA, WORLD, GRID_GAP } from '../src/config';
+import { RACE, PHYS, TERRAIN, ITEM, CAMERA, WORLD, GRID_GAP, TRACKS } from '../src/config';
 
 describe('config sanity', () => {
   it('race has a sensible kart count and laps', () => {
@@ -34,5 +34,21 @@ describe('config sanity', () => {
 
   it('grid gap is positive', () => {
     expect(GRID_GAP).toBeGreaterThan(0);
+  });
+
+  it('exposes multiple selectable tracks with valid point loops', () => {
+    expect(TRACKS.length).toBeGreaterThanOrEqual(2);
+    for (const t of TRACKS) {
+      expect(t.id).toBeTruthy();
+      expect(t.name).toBeTruthy();
+      expect(Array.isArray(t.points)).toBe(true);
+      expect(t.points.length).toBeGreaterThanOrEqual(4);
+      for (const [x, z] of t.points) {
+        expect(typeof x).toBe('number');
+        expect(typeof z).toBe('number');
+      }
+    }
+    // ids must be unique (used as keys)
+    expect(new Set(TRACKS.map((t) => t.id)).size).toBe(TRACKS.length);
   });
 });
