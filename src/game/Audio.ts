@@ -26,18 +26,31 @@ export class Audio {
   }
 
   // Must be called from a user gesture (start button).
+  // Create the AudioContext and master gain. Must be called from a user gesture
+  // (start button) to actually play audio; creating the context is the slow part
+  // (~200ms) so we warm it up early during page load and only resume here.
   init() {
-    if (this.enabled) return;
+    if (!this.ctx) this.#createContext();
+    if (!this.ctx || this.enabled) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.enabled = true;
+    this._startEngine();
+  }
+
+  // Create the AudioContext now (during load) so the expensive context
+  // construction doesn't block the frame when the player clicks Start.
+  warmup() {
+    if (!this.ctx) this.#createContext();
+  }
+
+  #createContext() {
     const AC = window.AudioContext || (window as any).webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
     this.ctx = ctx;
-    if (ctx.state === 'suspended') ctx.resume();
     this.master = ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.55;
     this.master.connect(ctx.destination);
-    this.enabled = true;
-    this._startEngine();
   }
 
   setMuted(m: boolean) {

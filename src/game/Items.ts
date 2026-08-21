@@ -214,7 +214,6 @@ export class Items {
     const M = this.track.samples.length;
     for (const pd of this.pads) {
       for (const k of karts) {
-        if (k.finished) continue;
         const t = this.track.worldToTrack(k.pos, k.trackHint);
         let di = Math.abs(t.index - pd.index);
         di = Math.min(di, M - di); // wrap around the loop
@@ -225,7 +224,7 @@ export class Items {
     // jump ramps: a fast kart over one launches into the air (no-op if already up)
     for (const j of this.jumps) {
       for (const k of karts) {
-        if (k.finished || k.airborne) continue;
+        if (k.airborne) continue;
         const t = this.track.worldToTrack(k.pos, k.trackHint);
         let di = Math.abs(t.index - j.index);
         di = Math.min(di, M - di);

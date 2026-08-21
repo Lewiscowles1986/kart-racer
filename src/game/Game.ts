@@ -62,6 +62,7 @@ export class Game {
   selectedCharacter = 0;
   selectedMap = 0;
   racerPreview: RacerPreview | null = null;
+  builtMap = -1; // the map the current track geometry is built for
   countdown = 0;
   countdownAccum = 0;
   clock!: THREE.Clock;
@@ -110,6 +111,7 @@ export class Game {
     this.state = 'MENU';
     this.hud.showMenu();
     this.#showMenuPreview();
+    this.#prebuildSelectedTrack();
   }
 
   #setupRenderer() {
@@ -187,6 +189,15 @@ export class Game {
     // HUD may not exist yet during the constructor's initial build; it is set
     // again on every rebuild (map selection / restart) once the HUD is live.
     if (this.hud) this.hud.setTrackPoints(TRACKS[this.selectedMap].points);
+    this.builtMap = this.selectedMap;
+  }
+
+  // Ensure the track geometry for the currently selected map is built. Building
+  // it while in the menu (where it is rendered each frame behind the overlay)
+  // removes the synchronous ~200ms hitch + shader compile that otherwise happens
+  // the instant the user clicks Start.
+  #prebuildSelectedTrack() {
+    if (this.builtMap !== this.selectedMap) this.#rebuildTrack();
   }
 
   // Rebuild the track for the currently selected map, and point every subsystem
@@ -212,6 +223,7 @@ export class Game {
 
   #makeEntities() {
     this.audio = new Audio();
+    this.audio.warmup(); // create the AudioContext during load, not on Start click
     this.input = new Input();
     this.effects = new Effects(this.scene, 2000);
     this.items = new Items({ scene: this.scene, track: this.track, world: this });
@@ -240,7 +252,13 @@ export class Game {
       TRACKS.map((t) => ({ id: t.id, name: t.name, desc: t.desc, color: t.color, points: t.points })),
     );
     this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; this.#setPreviewCharacter(); };
-    this.hud.onSelectMap = (i) => { this.selectedMap = i; };
+    this.hud.onSelectMap = (i) => {
+      this.selectedMap = i;
+      // Pre-build the newly chosen track in the background so clicking Start
+      // doesn't hitch on the synchronous build (which also warms its shaders
+      // while it renders behind the menu).
+      setTimeout(() => this.#prebuildSelectedTrack(), 20);
+    };
   }
 
   get player(): Kart { return this.karts[0]; }
@@ -261,7 +279,7 @@ export class Game {
     this.hud.hideOverlay();
     this.hud.showRaceHud();
     this.#applyPlayerSelection();
-    this.#rebuildTrack();
+    this.#prebuildSelectedTrack(); // reuse track built during the menu, if any
     const L = this.track.totalLen;
     // Clean 2-column x 4-row starting grid. P1 sits front-left; everyone else
     // pairs up side-by-side and falls back in rows, so every restart lines up in
@@ -296,7 +314,7 @@ export class Game {
     this.clock = new THREE.Clock();
     this.auto = new URLSearchParams(location.search).has('auto');
     if (this.auto) this.startRace();
-    else { this.hud.hideRaceHud(); this.hud.showMenu(); this.#showMenuPreview(); }
+    else { this.hud.hideRaceHud(); this.hud.showMenu(); this.#showMenuPreview(); this.#prebuildSelectedTrack(); }
     requestAnimationFrame(this.#loop);
   }
 
