@@ -302,6 +302,9 @@ export class Game {
       const lane = i % 2 === 0 ? -2.0 : 2.0; // left / right column
       this.karts[i].placeAt(L - row * GRID_GAP, lane);
     }
+    // Start the camera already framed on the player kart instead of lerping it
+    // down from the distant menu viewpoint, so the countdown reads clearly.
+    this.#snapCamera();
     this.countdown = 3;
     this.state = 'COUNTDOWN';
     this.hud.setCountdown('3');
@@ -385,7 +388,8 @@ export class Game {
       this.#checkFinish();
       this.#finishGuarantee(dt);
     } else if (this.state === 'FINISHED') {
-      this.#updateKarts(dt, true);
+      // karts are parked (speed forced to 0); keep them static by disabling input
+      this.#updateKarts(dt, false);
     }
 
     this.items.update(dt, this.karts);
@@ -475,6 +479,8 @@ export class Game {
 
   #doFinish() {
     this.state = 'FINISHED';
+    // Bring every kart to a standstill so the podium readout isn't a racing view.
+    for (const k of this.karts) { k.speed = 0; k.boostT = 0; k.starT = 0; k.padT = 0; k.spinning = 0; k.airborne = false; k.vy = 0; }
     this.audio.finish();
     const sorted = [...this.karts].sort((x, y) => (x.finishTime ?? Infinity) - (y.finishTime ?? Infinity));
     this.hud.showFinish(sorted.map((k) => ({ name: k.name, player: k.isPlayer, timeMs: k.finishTime! * 1000 })));
@@ -509,6 +515,23 @@ export class Game {
     this.hud.setPlayerPos(this.player.pos);
     this.hud.setKartDots(this.karts.map((k) => ({ x: k.pos.x, z: k.pos.z, color: '#' + k.color.toString(16).padStart(6, '0'), isPlayer: k.isPlayer })));
     this.hud.drawMinimap();
+  }
+
+  // Place the camera instantly on the player's chosen view, skipping the menu→race
+  // lerp so the countdown opens already framed on the kart.
+  #snapCamera() {
+    const p = this.player;
+    if (!p) return;
+    const m = CAMERA_MODES[this.cameraMode] ?? CAMERA_MODES[0];
+    const forward = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
+    if (m.overhead) {
+      this.camera.position.copy(p.pos).setY(p.pos.y + m.height);
+    } else {
+      this.camera.position.copy(p.pos).addScaledVector(forward, -m.distance).setY(p.pos.y + m.height);
+    }
+    this.camera.lookAt(p.pos.clone().setY(p.pos.y + 0.6));
+    this.camera.fov = m.fov;
+    this.camera.updateProjectionMatrix();
   }
 
   #updateCamera(dt: number) {
