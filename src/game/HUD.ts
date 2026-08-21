@@ -153,7 +153,7 @@ export class HUD {
       .controls{position:absolute;right:16px;bottom:90px;display:none;gap:10px;pointer-events:auto;opacity:.85}
       .controls .btn{width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;border:2px solid rgba(255,255,255,.5);touch-action:none}
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
-      .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,12,28,.55)}
+      .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,rgba(255,190,120,.20),transparent 58%),radial-gradient(ellipse at 50% 50%,rgba(10,16,34,.58),rgba(6,10,22,.66))}
       .center-overlay.hidden{display:none}
       .panel{background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:24px;padding:32px 34px 40px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:620px;max-height:92vh;overflow:auto;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
       .menu-brand{display:flex;align-items:center;justify-content:center;gap:12px}
@@ -165,11 +165,11 @@ export class HUD {
       .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
       .racer-grid{grid-template-columns:repeat(4,1fr)}
       .track-grid{grid-template-columns:repeat(3,1fr)}
-      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.15);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
       .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.13)}
       .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
       .racer-token{width:46px;height:46px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
-      .racer-glyph{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+      .racer-glyph{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:23px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
       .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
@@ -178,7 +178,7 @@ export class HUD {
       .panel .start:hover{filter:brightness(1.05)}
       .panel .start:active{transform:translateY(5px);box-shadow:0 2px 0 #b87700,0 6px 14px rgba(0,0,0,.3)}
       .controls-chip{margin:14px auto 0;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;font-size:13px;font-weight:600;background:rgba(0,0,0,.22);border-radius:12px;padding:9px 12px;color:#dfe6ee}
-      .controls-chip kbd{background:#2a3550;border-radius:6px;padding:2px 7px;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12)}
+      .controls-chip kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:26px;text-align:center;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
       .tip{margin:10px auto 0;max-width:440px;font-size:13px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:7px 12px;line-height:1.4}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -216,7 +216,7 @@ export class HUD {
           <div class="racer-grid">${racers}</div>
         </div>
         <div class="menu-section">
-          <h3>🗺️ Choose your track</h3>
+          <h3>🏁 Choose your track</h3>
           <div class="track-grid">${tracks}</div>
         </div>
         <button class="start">▶ Start Race</button>
