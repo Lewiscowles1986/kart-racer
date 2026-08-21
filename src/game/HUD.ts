@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { minimapSamples } from './minimap';
+import { TRACK_POINTS } from '../config';
 import type { TouchAction } from './Input';
 
 const POS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
@@ -47,6 +48,7 @@ export class HUD {
   _cycleIcon = '';
   kartDots: KartDot[] = [];
   playerPos: THREE.Vector3 | undefined;
+  trackPoints: [number, number][] = [];
   muted = false;
 
   onTouch?: (act: TouchAction, down: boolean) => void;
@@ -298,7 +300,7 @@ export class HUD {
     const ctx = this.mctx || this.map.getContext('2d')!;
     this.mctx = ctx;
     const W = this.map.width, H = this.map.height, pad = 8;
-    const samples = minimapSamples();
+    const samples = minimapSamples(this.trackPoints.length ? this.trackPoints : TRACK_POINTS);
     ctx.clearRect(0, 0, W, H);
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const s of samples) { minX = Math.min(minX, s[0]); maxX = Math.max(maxX, s[0]); minZ = Math.min(minZ, s[1]); maxZ = Math.max(maxZ, s[1]); }
@@ -320,6 +322,7 @@ export class HUD {
 
   setPlayerPos(v: THREE.Vector3) { this.playerPos = v; }
   setKartDots(dots: KartDot[]) { this.kartDots = dots; }
+  setTrackPoints(points: [number, number][]) { this.trackPoints = points; }
 
   showPause() {
     this.panelEl.innerHTML = `<h1>⏸ Paused</h1><p>Take a breath — the race is waiting.</p><button class="on">▶ Resume</button><button class="quit">🏠 Quit to Menu</button>`;

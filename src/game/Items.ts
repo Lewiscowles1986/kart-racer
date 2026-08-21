@@ -134,7 +134,9 @@ export class Items {
         for (const k of karts) {
           if (k.item || k.rouletteT > 0) continue;
           const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-          if (dx * dx + dz * dz < (2.2 * KART_SCALE) * (2.2 * KART_SCALE)) {
+          // generous pickup radius (1.8 world units) so boxes are grabbed even at
+          // top speed / from the road centre, not just on a perfect line
+          if (dx * dx + dz * dz < 1.8 * 1.8) {
             k.rouletteT = ITEM.rouletteMs / 1000;
             this.world.audio.pickup();
             this.world.effects.ring(k.pos.clone().setY(k.pos.y + 0.6 * KART_SCALE), new THREE.Color(1, 0.9, 0.3), 1.6);
@@ -163,7 +165,7 @@ export class Items {
         if (k.shieldT > 0) continue;
         if (k === b.dropper) continue; // a kart never slips on its own banana
         const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-        if (dx * dx + dz * dz < (1.4 * KART_SCALE) * (1.4 * KART_SCALE)) {
+        if (dx * dx + dz * dz < 0.9 * 0.9) {
           if (k.hitBanana()) { toRemove.push(b); break; }
         }
       }

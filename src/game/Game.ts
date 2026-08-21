@@ -162,6 +162,9 @@ export class Game {
   #buildTrack() {
     this.track = new Track(TRACKS[this.selectedMap].points, WORLD.roadWidth);
     this.trackGroup = buildScene(this.scene, this.track);
+    // HUD may not exist yet during the constructor's initial build; it is set
+    // again on every rebuild (map selection / restart) once the HUD is live.
+    if (this.hud) this.hud.setTrackPoints(TRACKS[this.selectedMap].points);
   }
 
   // Rebuild the track for the currently selected map, and point every subsystem
