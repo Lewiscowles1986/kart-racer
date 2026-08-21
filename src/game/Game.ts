@@ -237,8 +237,14 @@ export class Game {
     this.#applyPlayerSelection();
     this.#rebuildTrack();
     const L = this.track.totalLen;
-    const lat = [-2.6, 2.6, -1.4, 1.4, -3.6, 3.6, -0.4, 0.4];
-    for (let i = 0; i < this.karts.length; i++) this.karts[i].placeAt(L - i * GRID_GAP, lat[i]);
+    // Clean 2-column x 4-row starting grid. P1 sits front-left; everyone else
+    // pairs up side-by-side and falls back in rows, so every restart lines up in
+    // the same, clearly-readable race formation.
+    for (let i = 0; i < this.karts.length; i++) {
+      const row = Math.floor(i / 2); // 0 = front row, 1..N going back
+      const lane = i % 2 === 0 ? -2.0 : 2.0; // left / right column
+      this.karts[i].placeAt(L - row * GRID_GAP, lane);
+    }
     this.countdown = 3;
     this.state = 'COUNTDOWN';
     this.hud.setCountdown('3');
