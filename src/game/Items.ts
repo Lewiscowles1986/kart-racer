@@ -6,7 +6,7 @@ import type { Kart, Track, World } from './Kart';
 
 interface ItemBox {
   mesh: THREE.Group;
-  u: number;
+  frac: number; // arc-length fraction of the track (0..1) for relayout
   lateral: number;
   respawn: number;
   taken: boolean;
@@ -43,17 +43,25 @@ export class Items {
     const tex = itemBoxTexture();
     const mat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x222200 });
     ITEM_BOX_PLACEMENTS.forEach((frac, i) => {
-      const u = frac * this.track.totalLen;
       const lateral = i % 2 === 0 ? -1.6 : 1.6;
       const box = new THREE.Group();
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), mat);
       const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.18, depthWrite: false }));
       body.position.y = 0.65; glow.position.y = 0.7;
       box.add(body, glow);
-      this.placeOnTrack(box, u, lateral);
+      this.placeOnTrack(box, frac * this.track.totalLen, lateral);
       this.scene.add(box);
-      this.boxes.push({ mesh: box, u, lateral, respawn: 0, taken: false });
+      this.boxes.push({ mesh: box, frac, lateral, respawn: 0, taken: false });
     });
+  }
+
+  // Reposition every box on the CURRENT track (e.g. after a map is selected or a
+  // track is rebuilt). Each box keeps its fraction/lateral, so it always lands
+  // on the asphalt of the track actually being raced.
+  relayout() {
+    for (const b of this.boxes) {
+      this.placeOnTrack(b.mesh, b.frac * this.track.totalLen, b.lateral);
+    }
   }
 
   placeOnTrack(obj: THREE.Object3D, u: number, lateral: number) {

@@ -206,7 +206,7 @@ export class Game {
     }
     this.#buildTrack();
     for (const k of this.karts) k.track = this.track;
-    if (this.items) this.items.track = this.track;
+    if (this.items) { this.items.track = this.track; this.items.relayout(); }
     if (this.ai) this.ai.track = this.track;
   }
 
