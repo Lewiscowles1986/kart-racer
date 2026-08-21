@@ -185,7 +185,7 @@ function buildRibbon(samples: Sample[], offA: number, offB: number, repeatEvery 
   return geom;
 }
 
-export function buildScene(scene: THREE.Scene, track: Track): THREE.Group {
+export function buildScene(scene: THREE.Scene, track: Track, opts?: { trees?: [number, number, number][] }): THREE.Group {
   const group = new THREE.Group();
   group.name = 'track';
   const { samples, halfWidth } = track;
@@ -224,13 +224,15 @@ export function buildScene(scene: THREE.Scene, track: Track): THREE.Group {
     group.add(curb);
   }
 
-  addProps(group, track);
+  addProps(group, track, opts?.trees);
   scene.add(group);
   return group;
 }
 
-// Cartoony fence + trees + start arch props to sell the setting.
-function addProps(group: THREE.Group, track: Track) {
+// Cartoony fence + trees + start arch props to sell the setting. `treePositions`
+// lets an editor supply explicit trees (as [x,z,r]); otherwise random trees are
+// generated (kept clear of the road and non-overlapping).
+function addProps(group: THREE.Group, track: Track, treePositions?: [number, number, number][]) {
   const { samples, halfWidth } = track;
   // white picket-style barrier on the outside shoulder, following the loop
   const barrierMat = new THREE.MeshStandardMaterial({ color: 0xf4ead8, roughness: 0.6, metalness: 0 });
@@ -246,22 +248,42 @@ function addProps(group: THREE.Group, track: Track) {
     group.add(post);
   }
 
-  // trees scattered on the surrounding grass (inside + outside), kept clear of road
+  const trees = treePositions ?? genTreePositions(samples, halfWidth);
+  for (const [x, z, r] of trees) group.add(buildTree(x, z, r));
+  addStartBanner(group, track);
+}
+
+// Build a single tree (trunk + foliage) centred at (x, z) on the terrain.
+export function buildTree(x: number, z: number, r: number): THREE.Group {
   const trunks = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.9, metalness: 0 });
   const foliage = new THREE.MeshStandardMaterial({ color: 0x3f9d3c, roughness: 0.85, metalness: 0 });
+  const tree = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.22, r * 0.32, r * 1.4, 6), trunks);
+  trunk.position.y = r * 0.7;
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), foliage);
+  crown.position.y = r * 2.0;
+  crown.scale.y = 1.15;
+  tree.add(trunk, crown);
+  tree.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
+  tree.position.set(x, terrainHeight(x, z), z);
+  return tree;
+}
+
+// Randomly scatter trees on the surrounding grass, kept clear of the road and of
+// each other. Returns [x, z, radius] tuples so a caller can persist/re-edit them.
+export function genTreePositions(samples: Sample[], halfWidth: number): [number, number, number][] {
+  const out: [number, number, number][] = [];
   const TREE_TARGET = 55;       // enough to frame the track, not a forest floor
   const TREE_MIN_SEP = 8;       // min distance between tree centres (no overlap)
-  let placed = 0;
   let attempts = 0;
   const placedPos: [number, number][] = [];
   let rng = 12345;
   const rand = () => ((rng = (rng * 16807) % 2147483647) / 2147483647);
-  while (placed < TREE_TARGET && attempts < 2500) {
+  while (out.length < TREE_TARGET && attempts < 2500) {
     attempts++;
     const x = (rand() - 0.5) * 430;
     const z = (rand() - 0.5) * 350;
-    // keep clear of the road: find the TRUE nearest sample (full scan, not the
-    // hint-windowed worldToTrack) so trees never land on the track.
+    // keep clear of the road: find the TRUE nearest sample (full scan)
     let minD = Infinity;
     for (const s of samples) {
       const dx = x - s.x, dz = z - s.z;
@@ -277,21 +299,10 @@ function addProps(group: THREE.Group, track: Track) {
     }
     if (tooClose) continue;
     const r = 0.9 + rand() * 1.6;
-    const tree = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.22, r * 0.32, r * 1.4, 6), trunks);
-    trunk.position.y = r * 0.7;
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), foliage);
-    crown.position.y = r * 2.0;
-    crown.scale.y = 1.15;
-    tree.add(trunk, crown);
-    tree.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
-    tree.position.set(x, terrainHeight(x, z), z);
-    tree.rotation.y = rand() * 6.28;
-    group.add(tree);
+    out.push([x, z, r]);
     placedPos.push([x, z]);
-    placed++;
   }
-  addStartBanner(group, track);
+  return out;
 }
 
 function addStartBanner(group: THREE.Group, track: Track) {
