@@ -170,9 +170,9 @@ export class HUD {
       .menu-section{margin:8px 0 4px}
       .menu-section h3{margin:0 0 8px;font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}
       .racer-grid,.track-grid{display:grid;gap:8px;justify-content:center}
-      .racer-grid{grid-template-columns:repeat(4,minmax(60px,72px))}
-      .track-grid{grid-template-columns:repeat(3,1fr)}
-      .racer-row{display:flex;align-items:center;justify-content:center;gap:16px}
+      .racer-grid{grid-template-columns:repeat(4,minmax(58px,70px))}
+      .track-grid{display:flex;flex-direction:column;gap:8px;width:150px}
+      .pick-row{display:flex;align-items:center;justify-content:center;gap:20px}
       .racer,.track{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:13px;border:1px solid rgba(255,255,255,.26);background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.07));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 4px rgba(0,0,0,.12);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
       .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.13)}
       .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
@@ -180,13 +180,13 @@ export class HUD {
       .racer-glyph{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:25px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35)}
       .racer-name{font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .racer-preview{width:118px;height:118px;display:block;background:radial-gradient(circle at 50% 38%,rgba(70,100,170,.45),rgba(16,24,46,.9) 78%);border-radius:14px;border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 14px 28px rgba(90,130,220,.14),0 6px 18px rgba(0,0,0,.4);flex:0 0 auto}
-      .track-thumb{width:100%;height:38px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
+      .track-thumb{width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-      .track-preview{margin-top:10px;display:flex;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:8px 12px}
-      .tp-canvas{width:112px;height:112px;border-radius:12px;flex:0 0 auto;background:radial-gradient(circle at 50% 38%,rgba(60,90,160,.55),rgba(14,22,44,.9) 80%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.3)}
-      .tp-info{flex:1;min-width:0}
-      .tp-name{margin:0 0 3px;font-size:17px;font-weight:800;color:#ffd23f}
-      .tp-desc{margin:0;font-size:12px;font-weight:600;line-height:1.4;color:#dfe6ee;opacity:.92}
+      .track-preview{width:150px;min-height:150px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;background:radial-gradient(circle at 50% 30%,rgba(60,90,160,.32),rgba(8,14,30,.55));border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 8px;flex:0 0 auto}
+      .tp-canvas{width:118px;height:118px;border-radius:12px;flex:0 0 auto;background:radial-gradient(circle at 50% 38%,rgba(60,90,160,.55),rgba(14,22,44,.9) 80%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.3)}
+      .tp-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;justify-content:center}
+      .tp-name{margin:0;font-size:15px;font-weight:800;color:#ffd23f}
+      .tp-desc{margin:0;font-size:11px;font-weight:600;line-height:1.3;color:#dfe6ee;opacity:.92}
       .empty{opacity:.6;font-size:14px}
       .panel .start{margin-top:12px;width:100%;font-size:21px;font-weight:800;padding:11px 40px;border:0;border-radius:15px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 6px 0 #b87700,0 10px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
       .panel .start:hover{filter:brightness(1.05)}
@@ -230,19 +230,21 @@ export class HUD {
           <p class="menu-sub">Pick your racer, pick your track, and go!</p>
           <div class="menu-section">
             <h3>🚩 Choose your racer</h3>
-            <div class="racer-row">
-              <canvas class="racer-preview" width="140" height="140"></canvas>
+            <div class="pick-row">
               <div class="racer-grid">${racers}</div>
+              <canvas class="racer-preview" width="140" height="140"></canvas>
             </div>
           </div>
           <div class="menu-section">
             <h3>🏁 Choose your track</h3>
-            <div class="track-grid">${tracks}</div>
-            <div class="track-preview">
-              <canvas class="tp-canvas" width="150" height="150"></canvas>
-              <div class="tp-info">
-                <h4 class="tp-name"></h4>
-                <p class="tp-desc"></p>
+            <div class="pick-row">
+              <div class="track-grid">${tracks}</div>
+              <div class="track-preview">
+                <canvas class="tp-canvas" width="150" height="150"></canvas>
+                <div class="tp-info">
+                  <h4 class="tp-name"></h4>
+                  <p class="tp-desc"></p>
+                </div>
               </div>
             </div>
           </div>
