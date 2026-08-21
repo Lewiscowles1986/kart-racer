@@ -177,6 +177,19 @@ export class HUD {
 
   hideOverlay() { this.overlayEl.classList.add('hidden'); }
 
+  // Race HUD (position/timer/minimap/touch controls) is only relevant while a
+  // race is live. Keeping it hidden in MENU decouples the menu from the race UI.
+  showRaceHud() {
+    (this.el.querySelector('.hud-top') as HTMLElement).style.display = 'flex';
+    (this.el.querySelector('.hud-bottom') as HTMLElement).style.display = 'flex';
+    if ('ontouchstart' in window) this.controls.style.display = 'flex';
+  }
+  hideRaceHud() {
+    (this.el.querySelector('.hud-top') as HTMLElement).style.display = 'none';
+    (this.el.querySelector('.hud-bottom') as HTMLElement).style.display = 'none';
+    this.controls.style.display = 'none';
+  }
+
   setCountdown(text: string) {
     this.countdownEl.textContent = text;
     this.countdownEl.style.opacity = text ? '1' : '0';

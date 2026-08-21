@@ -101,6 +101,7 @@ export class Game {
   quitToMenu() {
     this.paused = false;
     this.hud.hidePause();
+    this.hud.hideRaceHud();
     this.state = 'MENU';
     this.hud.showMenu();
   }
@@ -192,6 +193,7 @@ export class Game {
     this.audio.init();
     this.audio.startMusic();
     this.hud.hideOverlay();
+    this.hud.showRaceHud();
     const L = this.track.totalLen;
     const lat = [-2.6, 2.6, -1.4, 1.4, -3.6, 3.6, -0.4, 0.4];
     for (let i = 0; i < this.karts.length; i++) this.karts[i].placeAt(L - i * GRID_GAP, lat[i]);
@@ -219,7 +221,7 @@ export class Game {
     this.clock = new THREE.Clock();
     this.auto = new URLSearchParams(location.search).has('auto');
     if (this.auto) this.startRace();
-    else this.hud.showMenu();
+    else { this.hud.hideRaceHud(); this.hud.showMenu(); }
     requestAnimationFrame(this.#loop);
   }
 
@@ -256,7 +258,7 @@ export class Game {
     this.items.update(dt, this.karts);
     this.effects.update(dt);
     this.#updateCamera(dt);
-    this.#updateHud();
+    if (this.state !== 'MENU') this.#updateHud();
 
     if (this.audio.enabled) this.audio.engine(Math.abs(this.player.speed) / PHYS.maxSpeed, this.player.boostT > 0 || this.player.starT > 0);
     this.renderer.render(this.scene, this.camera);
