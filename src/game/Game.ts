@@ -215,7 +215,7 @@ export class Game {
     const GLYPHS = ['⭐', '🧢', '😈', '🎀', '🦸', '🤖', '🎩', '🌺'];
     this.hud.setMenuData(
       DRIVER_STYLES.map((s, i) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0'), style: s.driverStyle, glyph: GLYPHS[i] })),
-      TRACKS.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      TRACKS.map((t) => ({ id: t.id, name: t.name, desc: t.desc, color: t.color, points: t.points })),
     );
     this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; };
     this.hud.onSelectMap = (i) => { this.selectedMap = i; };

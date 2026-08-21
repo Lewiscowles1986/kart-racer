@@ -63,7 +63,7 @@ export class HUD {
 
   // menu data (set by Game before showing the menu)
   characters: { name: string; color: string; style: string; glyph: string }[] = [];
-  maps: { id: string; name: string; color: [string, string] }[] = [];
+  maps: { id: string; name: string; desc: string; color: [string, string]; points: [number, number][] }[] = [];
   selectedCharacter = 0;
   selectedMap = 0;
 
@@ -175,6 +175,11 @@ export class HUD {
       .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .track-preview{margin-top:12px;display:flex;align-items:center;gap:14px;text-align:left;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 14px}
+      .tp-canvas{width:150px;height:150px;border-radius:12px;flex:0 0 auto;background:radial-gradient(circle at 50% 40%,rgba(30,50,90,.6),rgba(10,16,30,.8));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+      .tp-info{flex:1;min-width:0}
+      .tp-name{margin:0 0 4px;font-size:20px;font-weight:800;color:#ffd23f}
+      .tp-desc{margin:0;font-size:13px;font-weight:600;line-height:1.45;color:#dfe6ee;opacity:.92}
       .empty{opacity:.6;font-size:14px}
       .panel .start{margin-top:18px;width:100%;font-size:24px;font-weight:800;padding:16px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 7px 0 #b87700,0 12px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
       .panel .start:hover{filter:brightness(1.05)}
@@ -222,6 +227,13 @@ export class HUD {
         <div class="menu-section">
           <h3>🏁 Choose your track</h3>
           <div class="track-grid">${tracks}</div>
+          <div class="track-preview">
+            <canvas class="tp-canvas" width="150" height="150"></canvas>
+            <div class="tp-info">
+              <h4 class="tp-name"></h4>
+              <p class="tp-desc"></p>
+            </div>
+          </div>
         </div>
         <button class="start">▶︎ Start Race</button>
         <div class="controls-chip">${touch
@@ -231,6 +243,7 @@ export class HUD {
       </div>
     `;
     this.overlayEl.classList.remove('hidden');
+    this.drawTrackPreview();
     (this.panelEl.querySelector('.start') as HTMLElement).onclick = () => this.onStart && this.onStart();
     this.panelEl.querySelectorAll('.racer').forEach((b) => {
       b.addEventListener('click', () => {
@@ -245,6 +258,7 @@ export class HUD {
         const i = Number((b as HTMLElement).dataset.i);
         this.selectedMap = i;
         this.panelEl.querySelectorAll('.track').forEach((x) => x.classList.toggle('sel', x === b));
+        this.drawTrackPreview();
         this.onSelectMap && this.onSelectMap(i);
       });
     });
@@ -252,7 +266,7 @@ export class HUD {
 
   hideOverlay() { this.overlayEl.classList.add('hidden'); }
 
-  setMenuData(characters: { name: string; color: string; style: string; glyph: string }[], maps: { id: string; name: string; color: [string, string] }[]) {
+  setMenuData(characters: { name: string; color: string; style: string; glyph: string }[], maps: { id: string; name: string; desc: string; color: [string, string]; points: [number, number][] }[]) {
     this.characters = characters;
     this.maps = maps;
   }
@@ -323,6 +337,46 @@ export class HUD {
   setPlayerPos(v: THREE.Vector3) { this.playerPos = v; }
   setKartDots(dots: KartDot[]) { this.kartDots = dots; }
   setTrackPoints(points: [number, number][]) { this.trackPoints = points; }
+
+  // Draws the currently-selected track's loop + name/description on the menu so
+  // picking a map gives immediate visual feedback that the track has changed.
+  drawTrackPreview() {
+    const m = this.maps[this.selectedMap];
+    if (!m) return;
+    const nameEl = this.panelEl.querySelector('.tp-name') as HTMLElement | null;
+    const descEl = this.panelEl.querySelector('.tp-desc') as HTMLElement | null;
+    if (nameEl) nameEl.textContent = m.name;
+    if (descEl) descEl.textContent = m.desc;
+    const cv = this.panelEl.querySelector('.tp-canvas') as HTMLCanvasElement | null;
+    if (!cv) return;
+    const ctx = cv.getContext('2d')!;
+    const W = cv.width, H = cv.height, pad = 16;
+    ctx.clearRect(0, 0, W, H);
+    // rounded backing disc
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, (W - 2 * pad) / 2, 0, 7);
+    ctx.fillStyle = 'rgba(10,16,30,.55)';
+    ctx.fill();
+    const pts = m.points;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const [x, z] of pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+    const sx = (x: number) => pad + (x - minX) / (maxX - minX || 1) * (W - 2 * pad);
+    const sz = (z: number) => pad + (z - minZ) / (maxZ - minZ || 1) * (H - 2 * pad);
+    // shadowed loop
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 11; ctx.strokeStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath();
+    pts.forEach(([x, z], i) => { i ? ctx.lineTo(sx(x), sz(z)) : ctx.moveTo(sx(x), sz(z)); });
+    ctx.closePath(); ctx.stroke();
+    ctx.lineWidth = 5; ctx.strokeStyle = m.color[0];
+    ctx.beginPath();
+    pts.forEach(([x, z], i) => { i ? ctx.lineTo(sx(x), sz(z)) : ctx.moveTo(sx(x), sz(z)); });
+    ctx.closePath(); ctx.stroke();
+    // start marker
+    const [sx0, sz0] = [sx(pts[0][0]), sz(pts[0][1])];
+    ctx.beginPath(); ctx.arc(sx0, sz0, 5, 0, 7); ctx.fillStyle = m.color[1]; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
 
   showPause() {
     this.panelEl.innerHTML = `<h1>⏸ Paused</h1><p>Take a breath — the race is waiting.</p><button class="on">▶ Resume</button><button class="quit">🏠 Quit to Menu</button>`;

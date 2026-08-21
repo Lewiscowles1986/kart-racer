@@ -126,6 +126,7 @@ export const WORLD: WorldConfig = {
 export interface TrackDef {
   id: string;
   name: string;
+  desc: string;
   points: [number, number][];
   // gradient stops for the track's thumbnail/swatch
   color: [string, string];
@@ -136,6 +137,7 @@ export const TRACKS: TrackDef[] = [
   {
     id: 'sunny',
     name: 'Sunny Circuit',
+    desc: 'A wide, gentle summer loop — great for learning the basics.',
     color: ['#6cc24a', '#ffd23f'],
     points: [
       [0, -44], [34, -40], [60, -18], [66, 16], [50, 42], [22, 52],
@@ -145,6 +147,7 @@ export const TRACKS: TrackDef[] = [
   {
     id: 'canyon',
     name: 'Canyon Loop',
+    desc: 'Snakier with tighter turns — practise your drifts here.',
     color: ['#e76f51', '#f4a261'],
     points: [
       [0, -40], [24, -34], [34, -12], [22, 8], [34, 30], [12, 42],
@@ -154,6 +157,7 @@ export const TRACKS: TrackDef[] = [
   {
     id: 'coast',
     name: 'Coastal Dash',
+    desc: 'A fast, flowing seaside circuit with long sweeping straights.',
     color: ['#4fd1c5', '#3b82f6'],
     points: [
       [0, -52], [44, -46], [72, -18], [72, 18], [44, 46], [0, 52],
