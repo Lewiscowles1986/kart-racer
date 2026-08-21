@@ -155,7 +155,7 @@ export class HUD {
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
       .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,12,28,.55)}
       .center-overlay.hidden{display:none}
-      .panel{background:linear-gradient(180deg,rgba(46,74,148,.88),rgba(18,32,66,.92));border-radius:24px;padding:30px 36px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.15);pointer-events:auto;max-width:620px;max-height:92vh;overflow:auto;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12)}
+      .panel{background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:24px;padding:32px 34px 40px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:620px;max-height:92vh;overflow:auto;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
       .menu-brand{display:flex;align-items:center;justify-content:center;gap:12px}
       .brand-badge{width:56px;height:56px;border-radius:16px;background:radial-gradient(circle at 30% 25%,#ffe9a8,#ffd23f 55%,#e09f1f);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15)}
       .menu-title{margin:0;font-size:42px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
@@ -164,12 +164,12 @@ export class HUD {
       .menu-section h3{margin:0 0 12px;font-size:18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}
       .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
       .racer-grid{grid-template-columns:repeat(4,1fr)}
-      .track-grid{grid-template-columns:repeat(2,1fr)}
-      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
-      .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.12)}
+      .track-grid{grid-template-columns:repeat(3,1fr)}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
+      .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.13)}
       .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
-      .racer-token{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,var(--c) 45%,rgba(0,0,0,.35) 150%);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:inset 0 -3px 8px rgba(0,0,0,.3),0 3px 8px rgba(0,0,0,.35)}
-      .racer-glyph{filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+      .racer-token{width:46px;height:46px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
+      .racer-glyph{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
       .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
       .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
       .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
