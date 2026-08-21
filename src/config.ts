@@ -181,3 +181,20 @@ export const ITEM_BOX_PLACEMENTS: number[] = [
 ];
 
 export const GRID_GAP = 7.0; // longitudinal spacing on start grid
+
+// Boost-pad physics: a moderate speed kick, between base cruising and a full
+// mushroom, so pads reward hitting the racing line without overpowering items.
+export const PAD = {
+  force: 520,      // extra acceleration while a pad boost is active
+  time: 1.0,       // seconds the boost lasts after leaving the pad
+  top: 40,         // top speed while pad-boosting (base maxSpeed 34, mushroom 47)
+};
+
+// Boost-pad placement: fractions of arc length, centred on the road.
+export const BOOST_PADS: { frac: number; lateral: number }[] = [
+  { frac: 0.13, lateral: 0 },
+  { frac: 0.29, lateral: 0 },
+  { frac: 0.47, lateral: 0 },
+  { frac: 0.65, lateral: 0 },
+  { frac: 0.84, lateral: 0 },
+];

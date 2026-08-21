@@ -222,12 +222,12 @@ export class HUD {
           <h1 class="menu-title">Kart Kingdom</h1>
         </div>
         <p class="menu-sub">Pick your racer, pick your track, and go!</p>
+        <div class="racer-preview-box">
+          <canvas class="racer-preview" width="140" height="140"></canvas>
+        </div>
         <div class="menu-section">
           <h3>🚩 Choose your racer</h3>
           <div class="racer-grid">${racers}</div>
-          <div class="racer-preview-box">
-            <canvas class="racer-preview" width="140" height="140"></canvas>
-          </div>
         </div>
         <div class="menu-section">
           <h3>🏁 Choose your track</h3>

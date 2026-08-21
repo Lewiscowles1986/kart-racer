@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE } from '../config';
+import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS } from '../config';
 import { itemBoxTexture } from '../util/tex';
 import { terrainHeight } from '../track/track';
 import type { Kart, Track, World } from './Kart';
@@ -19,6 +19,13 @@ interface Banana {
   dropT: number;
 }
 
+interface Pad {
+  mesh: THREE.Group;
+  frac: number;
+  lateral: number;
+  index: number; // nearest sample index, used for proximity detection
+}
+
 // Item boxes, the roulette that picks the item, and the active items on the
 // road (bananas) plus their effects (mushroom boost, star/shield invincibility).
 export class Items {
@@ -28,6 +35,7 @@ export class Items {
 
   boxes: ItemBox[];
   bananas: Banana[];
+  pads: Pad[];
 
   constructor({ scene, track, world }: { scene: THREE.Scene; track: Track; world: World }) {
     this.scene = scene;
@@ -36,7 +44,9 @@ export class Items {
 
     this.boxes = [];
     this.bananas = [];
+    this.pads = [];
     this.buildBoxes();
+    this.buildPads();
   }
 
   buildBoxes() {
@@ -61,6 +71,35 @@ export class Items {
   relayout() {
     for (const b of this.boxes) {
       this.placeOnTrack(b.mesh, b.frac * this.track.totalLen, b.lateral);
+    }
+    for (const pd of this.pads) {
+      const u = pd.frac * this.track.totalLen;
+      pd.index = this.track.sampleAtU(u).index;
+      this.placeOnTrack(pd.mesh, u, pd.lateral);
+    }
+  }
+
+  // Bright boost pads on the road surface. Driving onto one gives a moderate
+  // speed kick via Kart.applyPad().
+  buildPads() {
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, emissive: 0xff6a00, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0 });
+    const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.55 });
+    for (const { frac, lateral } of BOOST_PADS) {
+      const pad = new THREE.Group();
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 4.4), plateMat);
+      plate.position.y = 0.07;
+      pad.add(plate);
+      // forward chevron arrows
+      for (let i = 0; i < 3; i++) {
+        const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 0.34), arrowMat);
+        arrow.position.set(0, 0.12, -1.3 + i * 1.3);
+        pad.add(arrow);
+      }
+      const u = frac * this.track.totalLen;
+      const index = this.track.sampleAtU(u).index;
+      this.placeOnTrack(pad, u, lateral);
+      this.scene.add(pad);
+      this.pads.push({ mesh: pad, frac, lateral, index });
     }
   }
 
@@ -126,6 +165,20 @@ export class Items {
 
   // ---- per-frame update ----
   update(dt: number, karts: Kart[]) {
+    // boost pads: any kart over a pad gets a speed kick (refreshed while it stays
+    // on it). Proximity is compared in SAMPLE-INDEX space because sampleAtU (used
+    // to place) and worldToTrack (used to detect) disagree on arc length.
+    const M = this.track.samples.length;
+    for (const pd of this.pads) {
+      for (const k of karts) {
+        if (k.finished) continue;
+        const t = this.track.worldToTrack(k.pos, k.trackHint);
+        let di = Math.abs(t.index - pd.index);
+        di = Math.min(di, M - di); // wrap around the loop
+        if (di < 9 && Math.abs(t.lat) < 2.3) k.applyPad();
+      }
+    }
+
     // animate + respawn boxes
     const now = this.world.timeMs;
     for (const b of this.boxes) {

@@ -280,7 +280,7 @@ export class Game {
 
   restart() {
     for (const k of this.karts) {
-      k.spinning = 0; k.boostT = 0; k.shieldT = 0; k.starT = 0; k.item = null; k.speed = 0;
+      k.spinning = 0; k.boostT = 0; k.shieldT = 0; k.starT = 0; k.padT = 0; k.item = null; k.speed = 0;
       k.finished = false; k.finishTime = null; k.raceTime = 0; k.rouletteT = 0; k.respawnT = 0;
     }
     this.timeMs = 0;

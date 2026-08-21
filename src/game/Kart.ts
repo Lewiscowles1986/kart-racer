@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PHYS, TERRAIN, KART_SCALE } from '../config';
+import { PHYS, TERRAIN, KART_SCALE, PAD } from '../config';
 import { terrainHeight, terrainNormal } from '../track/track';
 import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
@@ -60,6 +60,7 @@ export class Kart {
   boostT: number;
   shieldT: number;
   starT: number;
+  padT: number;          // >0 while boosted by a track boost pad
   item: string | null;
 
   drifting: boolean;
@@ -98,6 +99,7 @@ export class Kart {
     this.boostT = 0;
     this.shieldT = 0;
     this.starT = 0;
+    this.padT = 0;
     this.item = null;
 
     this.drifting = false;
@@ -181,6 +183,12 @@ export class Kart {
     this.drifting = false;
   }
 
+  // Track boost pad: a moderate speed kick (refreshed while the kart stays on
+  // the pad, so riding the racing line keeps you boosted).
+  applyPad() {
+    this.padT = PAD.time;
+  }
+
   update(dt: number, input: InputFrame) {
     this.raceTime += dt;
     this.pos.y = terrainHeight(this.pos.x, this.pos.z) + RIDE_HEIGHT;
@@ -194,6 +202,7 @@ export class Kart {
     if (this.boostT > 0) this.boostT -= dt;
     if (this.shieldT > 0) this.shieldT -= dt;
     if (this.starT > 0) this.starT -= dt;
+    if (this.padT > 0) this.padT -= dt;
 
     let steer = input.steer;
     const throttle = input.throttle;
@@ -233,9 +242,13 @@ export class Kart {
       this.yaw += steer * turn * dt;
     }
 
-    // boost (star = sustained invincibility + modest speed; mushroom = burst)
-    const boosting = this.boostT > 0 || this.starT > 0;
-    if (boosting) this.speed += (this.starT > 0 ? PHYS.boost.star : PHYS.boost.mushroom).force * dt;
+    // boost (star = sustained invincibility + modest speed; mushroom = burst;
+    // pad = a track boost-pad kick, weakest of the three)
+    const padBoost = this.padT > 0;
+    const boosting = this.boostT > 0 || this.starT > 0 || padBoost;
+    if (this.starT > 0) this.speed += PHYS.boost.star.force * dt;
+    else if (this.boostT > 0) this.speed += PHYS.boost.mushroom.force * dt;
+    else if (padBoost) this.speed += PAD.force * dt;
     this.speed = Math.min(this.speed, this.#topSpeed(boosting));
 
     const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -287,7 +300,10 @@ export class Kart {
   #topSpeed(boost: boolean): number {
     const base = PHYS.maxSpeed * this.terrainFactor;
     if (!boost) return base;
-    return this.starT > 0 ? PHYS.boost.star.top : PHYS.boost.mushroom.top;
+    if (this.starT > 0) return PHYS.boost.star.top;
+    if (this.boostT > 0) return PHYS.boost.mushroom.top;
+    if (this.padT > 0) return PAD.top;
+    return base;
   }
 
   #orient(dt: number, steer: number) {
