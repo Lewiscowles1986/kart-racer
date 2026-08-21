@@ -173,8 +173,11 @@ export const PLAYER = { index: 0 };
 
 // Item box placement: as fractions of track arc length (0..1). Boxes appear in
 // short lateral offsets so a full set can be grabbed in sequence.
+// Curated, learning-friendly item box placement (fractions of arc length 0..1):
+// a teaching pair right after the start line so new players grab an item
+// immediately, then a steady spread around the rest of the loop.
 export const ITEM_BOX_PLACEMENTS: number[] = [
-  0.06, 0.16, 0.27, 0.36, 0.45, 0.55, 0.66, 0.75, 0.86, 0.96,
+  0.05, 0.09, 0.22, 0.34, 0.46, 0.58, 0.70, 0.82, 0.94,
 ];
 
 export const GRID_GAP = 7.0; // longitudinal spacing on start grid
