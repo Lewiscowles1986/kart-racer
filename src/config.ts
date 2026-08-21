@@ -151,6 +151,13 @@ export interface TrackDef {
   points: [number, number][];
   // gradient stops for the track's thumbnail/swatch
   color: [string, string];
+  // optional explicit placements for editor-authored levels; when absent the
+  // engine falls back to the shared ITEM_BOX_PLACEMENTS / BOOST_PADS / JUMPS and
+  // randomly scatters trees.
+  trees?: [number, number, number][];
+  itemBoxes?: { frac: number; lateral: number }[];
+  boostPads?: { frac: number; lateral: number }[];
+  jumps?: { frac: number; lateral: number }[];
 }
 
 // Selectable tracks. Each is a closed Catmull-Rom loop; the first is the default.

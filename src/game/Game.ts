@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD } from '../config';
+import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD, ITEM_BOX_PLACEMENTS, BOOST_PADS, JUMPS, type TrackDef } from '../config';
 import { RacerPreview } from './RacerPreview';
 import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Kart, type World } from './Kart';
-import { Items } from './Items';
+import { Items, type Placements } from './Items';
 import { Effects } from './Effects';
 import { AI } from './AI';
 import { HUD } from './HUD';
@@ -80,8 +80,10 @@ export class Game {
 
     this.#setupRenderer();
     this.#setupScene();
+    this.loadCustomLevel();
     this.#buildTrack();
     this.#makeEntities();
+    this.items.setPlacements(placementsFor(TRACKS[this.selectedMap])); // apply custom level's placements
     this.#bindGlobal();
     this.raceTimeMs = 0;
     this.paused = false;
@@ -196,7 +198,7 @@ export class Game {
 
   #buildTrack() {
     this.track = new Track(TRACKS[this.selectedMap].points, WORLD.roadWidth);
-    this.trackGroup = buildScene(this.scene, this.track);
+    this.trackGroup = buildScene(this.scene, this.track, { trees: TRACKS[this.selectedMap].trees });
     // HUD may not exist yet during the constructor's initial build; it is set
     // again on every rebuild (map selection / restart) once the HUD is live.
     if (this.hud) this.hud.setTrackPoints(TRACKS[this.selectedMap].points);
@@ -228,7 +230,7 @@ export class Game {
     }
     this.#buildTrack();
     for (const k of this.karts) k.track = this.track;
-    if (this.items) { this.items.track = this.track; this.items.relayout(); }
+    if (this.items) { this.items.track = this.track; this.items.setPlacements(placementsFor(TRACKS[this.selectedMap])); }
     if (this.ai) this.ai.track = this.track;
   }
 
@@ -319,6 +321,33 @@ export class Game {
     this._finalLapShown = 0;
     this.items.reset();
     this.startRace();
+  }
+
+  // If the track editor saved a level via "Load in Game", register it as a
+  // custom track and pre-select it so the game races it immediately.
+  loadCustomLevel() {
+    const raw = localStorage.getItem('customLevel');
+    if (!raw) return;
+    try {
+      const d = JSON.parse(raw);
+      const objs: any[] = d.objects || [];
+      const def: TrackDef = {
+        id: 'custom',
+        name: d.name || 'Custom',
+        desc: 'A custom track built in the editor.',
+        points: Array.isArray(d.points) && d.points.length ? d.points : TRACKS[0].points,
+        color: ['#4fd1c5', '#818cf8'],
+        trees: d.trees || [],
+        itemBoxes: objs.filter((o) => o.type === 'box').map((o) => ({ frac: o.frac, lateral: o.lateral })),
+        boostPads: objs.filter((o) => o.type === 'pad').map((o) => ({ frac: o.frac, lateral: o.lateral })),
+        jumps: objs.filter((o) => o.type === 'jump').map((o) => ({ frac: o.frac, lateral: o.lateral })),
+      };
+      const idx = TRACKS.findIndex((t) => t.id === 'custom');
+      if (idx >= 0) TRACKS[idx] = def; else TRACKS.push(def);
+      this.selectedMap = TRACKS.length - 1;
+    } catch {
+      localStorage.removeItem('customLevel'); // malformed — drop it
+    }
   }
 
   start() {
@@ -511,4 +540,14 @@ export class Game {
 function score(k: Kart): number {
   if (k.finished) return (RACE.kartCount + 1) * 1e9 + (1e9 - k.finishTime!);
   return k.lap * 1e9 + k.dist;
+}
+
+// Resolve a track's object placements, falling back to the shared defaults for
+// built-in tracks that don't specify their own.
+function placementsFor(def: TrackDef): Placements {
+  return {
+    itemBoxes: def.itemBoxes ?? ITEM_BOX_PLACEMENTS.map((frac, i) => ({ frac, lateral: i % 2 === 0 ? -1.6 : 1.6 })),
+    boostPads: def.boostPads ?? BOOST_PADS,
+    jumps: def.jumps ?? JUMPS,
+  };
 }

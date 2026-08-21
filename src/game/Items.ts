@@ -26,6 +26,14 @@ interface Pad {
   index: number; // nearest sample index, used for proximity detection
 }
 
+// Per-track placements (boxes/pads/jumps along the road). Defaults mirror the
+// shared config; editor-authored tracks supply their own.
+export interface Placements {
+  itemBoxes: { frac: number; lateral: number }[];
+  boostPads: { frac: number; lateral: number }[];
+  jumps: { frac: number; lateral: number }[];
+}
+
 // Item boxes, the roulette that picks the item, and the active items on the
 // road (bananas) plus their effects (mushroom boost, star/shield invincibility).
 export class Items {
@@ -37,6 +45,7 @@ export class Items {
   bananas: Banana[];
   pads: Pad[];
   jumps: Pad[];
+  placements: Placements;
 
   constructor({ scene, track, world }: { scene: THREE.Scene; track: Track; world: World }) {
     this.scene = scene;
@@ -47,16 +56,38 @@ export class Items {
     this.bananas = [];
     this.pads = [];
     this.jumps = [];
+    this.placements = {
+      itemBoxes: ITEM_BOX_PLACEMENTS.map((frac, i) => ({ frac, lateral: i % 2 === 0 ? -1.6 : 1.6 })),
+      boostPads: BOOST_PADS,
+      jumps: JUMPS,
+    };
+    this.rebuild();
+  }
+
+  // Recreate boxes/pads/jumps from the current placements (called when a track's
+  // level definition changes). Removes old meshes and re-lays them out.
+  rebuild() {
+    for (const b of this.boxes) this.scene.remove(b.mesh);
+    for (const pd of this.pads) this.scene.remove(pd.mesh);
+    for (const j of this.jumps) this.scene.remove(j.mesh);
+    this.boxes = [];
+    this.pads = [];
+    this.jumps = [];
     this.buildBoxes();
     this.buildPads();
     this.buildJumps();
+    this.relayout();
+  }
+
+  setPlacements(p: Placements) {
+    this.placements = p;
+    this.rebuild();
   }
 
   buildBoxes() {
     const tex = itemBoxTexture();
     const mat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x222200 });
-    ITEM_BOX_PLACEMENTS.forEach((frac, i) => {
-      const lateral = i % 2 === 0 ? -1.6 : 1.6;
+    for (const { frac, lateral } of this.placements.itemBoxes) {
       const box = new THREE.Group();
       const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), mat);
       const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.18, depthWrite: false }));
@@ -65,7 +96,7 @@ export class Items {
       this.placeOnTrack(box, frac * this.track.totalLen, lateral);
       this.scene.add(box);
       this.boxes.push({ mesh: box, frac, lateral, respawn: 0, taken: false });
-    });
+    }
   }
 
   // Reposition every box on the CURRENT track (e.g. after a map is selected or a
@@ -100,7 +131,7 @@ export class Items {
   buildPads() {
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, emissive: 0xff6a00, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0 });
     const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.55 });
-    for (const { frac, lateral } of BOOST_PADS) {
+    for (const { frac, lateral } of this.placements.boostPads) {
       const pad = new THREE.Group();
       const plate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 4.4), plateMat);
       plate.position.y = 0.07;
@@ -124,7 +155,7 @@ export class Items {
   buildJumps() {
     const topMat = new THREE.MeshStandardMaterial({ color: 0xe0a83f, emissive: 0x6a4a00, emissiveIntensity: 0.4, roughness: 0.6 });
     const railMat = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.8 });
-    for (const { frac, lateral } of JUMPS) {
+    for (const { frac, lateral } of this.placements.jumps) {
       const u = frac * this.track.totalLen;
       const index = this.track.sampleAtU(u).index;
       const ramp = new THREE.Group();
