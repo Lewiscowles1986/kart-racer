@@ -159,40 +159,40 @@ export class HUD {
       .countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:900;color:#fff;text-shadow:0 6px 20px rgba(0,0,0,.6)}
       .center-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,rgba(255,190,120,.20),transparent 58%),radial-gradient(ellipse at 50% 50%,rgba(10,16,34,.58),rgba(6,10,22,.66))}
       .center-overlay.hidden{display:none}
-      .panel{background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:24px;padding:32px 34px 40px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:620px;max-height:92vh;overflow:auto;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
-      .menu-brand{display:flex;align-items:center;justify-content:center;gap:12px}
-      .brand-badge{width:56px;height:56px;border-radius:16px;background:radial-gradient(circle at 30% 25%,#ffe9a8,#ffd23f 55%,#e09f1f);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15)}
-      .menu-title{margin:0;font-size:42px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
-      .menu-sub{margin:8px 0 16px;font-size:17px;font-weight:600;opacity:.9}
-      .menu-section{margin:14px 0 6px}
-      .menu-section h3{margin:0 0 12px;font-size:18px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}
-      .racer-grid,.track-grid{display:grid;gap:10px;justify-content:center}
-      .racer-grid{grid-template-columns:repeat(4,1fr)}
+      .panel{background:linear-gradient(180deg,rgba(46,74,148,.72),rgba(18,32,66,.82));border-radius:22px;padding:20px 26px 26px;text-align:center;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18);pointer-events:auto;max-width:600px;max-height:94vh;overflow:auto;backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.16)}
+      .menu-brand{display:flex;align-items:center;justify-content:center;gap:10px}
+      .brand-badge{width:46px;height:46px;border-radius:14px;background:radial-gradient(circle at 30% 25%,#ffe9a8,#ffd23f 55%,#e09f1f);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 -4px 0 rgba(0,0,0,.15)}
+      .menu-title{margin:0;font-size:34px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
+      .menu-sub{margin:6px 0 10px;font-size:15px;font-weight:600;opacity:.9}
+      .menu-section{margin:8px 0 4px}
+      .menu-section h3{margin:0 0 8px;font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}
+      .racer-grid,.track-grid{display:grid;gap:8px;justify-content:center}
+      .racer-grid{grid-template-columns:repeat(4,minmax(60px,72px))}
       .track-grid{grid-template-columns:repeat(3,1fr)}
-      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.26);background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.07));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 4px rgba(0,0,0,.12);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
+      .racer-row{display:flex;align-items:center;justify-content:center;gap:16px}
+      .racer,.track{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:13px;border:1px solid rgba(255,255,255,.26);background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.07));color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 4px rgba(0,0,0,.12);transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}
       .racer:hover,.track:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.13)}
       .racer.sel,.track.sel{border-color:#ffd23f;background:rgba(255,210,63,.14);box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(255,210,63,.25)}
-      .racer-token{width:50px;height:50px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
-      .racer-glyph{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:31px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35)}
-      .racer-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-      .racer-preview-box{margin:12px auto 0;width:150px;height:150px}
-      .racer-preview{width:150px;height:150px;display:block;background:radial-gradient(circle at 50% 42%,rgba(40,60,110,.55),rgba(10,16,30,.85));border-radius:14px;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 18px rgba(0,0,0,.35)}
-      .track-thumb{width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
-      .track-name{font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-      .track-preview{margin-top:12px;display:flex;align-items:center;gap:14px;text-align:left;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 14px}
-      .tp-canvas{width:150px;height:150px;border-radius:12px;flex:0 0 auto;background:radial-gradient(circle at 50% 40%,rgba(30,50,90,.6),rgba(10,16,30,.8));box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+      .racer-token{width:42px;height:42px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -4px 8px rgba(0,0,0,.28),inset 0 3px 6px rgba(255,255,255,.28),0 3px 8px rgba(0,0,0,.35)}
+      .racer-glyph{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.94);display:flex;align-items:center;justify-content:center;font-size:25px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+      .racer-name{font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .racer-preview{width:118px;height:118px;display:block;background:radial-gradient(circle at 50% 38%,rgba(70,100,170,.45),rgba(16,24,46,.9) 78%);border-radius:14px;border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 14px 28px rgba(90,130,220,.14),0 6px 18px rgba(0,0,0,.4);flex:0 0 auto}
+      .track-thumb{width:100%;height:38px;border-radius:9px;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.3)}
+      .track-name{font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .track-preview{margin-top:10px;display:flex;align-items:center;gap:12px;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:8px 12px}
+      .tp-canvas{width:112px;height:112px;border-radius:12px;flex:0 0 auto;background:radial-gradient(circle at 50% 38%,rgba(60,90,160,.55),rgba(14,22,44,.9) 80%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.3)}
       .tp-info{flex:1;min-width:0}
-      .tp-name{margin:0 0 4px;font-size:20px;font-weight:800;color:#ffd23f}
-      .tp-desc{margin:0;font-size:13px;font-weight:600;line-height:1.45;color:#dfe6ee;opacity:.92}
+      .tp-name{margin:0 0 3px;font-size:17px;font-weight:800;color:#ffd23f}
+      .tp-desc{margin:0;font-size:12px;font-weight:600;line-height:1.4;color:#dfe6ee;opacity:.92}
       .empty{opacity:.6;font-size:14px}
-      .panel .start{margin-top:18px;width:100%;font-size:24px;font-weight:800;padding:16px 44px;border:0;border-radius:16px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 7px 0 #b87700,0 12px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
+      .panel .start{margin-top:12px;width:100%;font-size:21px;font-weight:800;padding:11px 40px;border:0;border-radius:15px;cursor:pointer;color:#16305f;background:linear-gradient(180deg,#ffe08a,#ffd23f 60%,#f4b400);box-shadow:0 6px 0 #b87700,0 10px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .08s,box-shadow .08s}
       .panel .start:hover{filter:brightness(1.05)}
       .panel .start:active{transform:translateY(5px);box-shadow:0 2px 0 #b87700,0 6px 14px rgba(0,0,0,.3)}
-      .controls-chip{margin:14px auto 0;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;background:rgba(0,0,0,.22);border-radius:12px;padding:10px 14px;color:#dfe6ee}
+      .controls-chip{margin:10px auto 0;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;justify-content:center;font-size:11px;background:rgba(0,0,0,.22);border-radius:12px;padding:7px 12px;color:#dfe6ee}
       .controls-chip .ctl{display:flex;flex-direction:column;align-items:center;gap:3px}
-      .controls-chip .ctl kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:26px;text-align:center;font-size:12px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
-      .controls-chip .ctl em{font-style:normal;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.72;color:#c7d2e0}
-      .tip{margin:10px auto 0;max-width:440px;font-size:13px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:7px 12px;line-height:1.4}
+      .controls-chip .ctl kbd{background:#2a3550;border-radius:6px;padding:3px 8px;min-width:24px;text-align:center;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);font-family:inherit}
+      .controls-chip .ctl em{font-style:normal;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.72;color:#c7d2e0}
+      .tip{margin:8px auto 0;max-width:440px;font-size:12px;font-weight:600;color:#ffe08a;background:rgba(255,210,63,.12);border-radius:10px;padding:6px 12px;line-height:1.4}
       .results{list-style:none;padding:0;margin:8px 0 0;font-size:20px;text-align:left}
       .results li{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)}
       .results .you{font-weight:800;color:#ffd23f}
@@ -224,12 +224,12 @@ export class HUD {
           <h1 class="menu-title">Kart Kingdom</h1>
         </div>
         <p class="menu-sub">Pick your racer, pick your track, and go!</p>
-        <div class="racer-preview-box">
-          <canvas class="racer-preview" width="140" height="140"></canvas>
-        </div>
         <div class="menu-section">
           <h3>🚩 Choose your racer</h3>
-          <div class="racer-grid">${racers}</div>
+          <div class="racer-row">
+            <canvas class="racer-preview" width="140" height="140"></canvas>
+            <div class="racer-grid">${racers}</div>
+          </div>
         </div>
         <div class="menu-section">
           <h3>🏁 Choose your track</h3>
