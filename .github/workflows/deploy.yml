@@ -1,13 +1,15 @@
 name: Build & deploy to GitHub Pages
 
-# Any branch that has this workflow builds on push and publishes to GitHub Pages.
+# One Pages source per repo, so we build every branch into its own subfolder
+# and publish a single combined site:
+#     /      -> main (latest)
+#     /pre   -> "pre"   branch (no boost/jump yet)
+#     /boost -> "boost" branch (boost pads)
+#     /jump  -> "jump"  branch (+ jump ramps)
+# Runs on push to main; also runnable manually (workflow_dispatch).
 on:
   push:
-    branches:
-      - main
-      - pre
-      - boost
-      - jump
+    branches: [main]
   workflow_dispatch: {}
 
 permissions:
@@ -22,28 +24,51 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: [main, pre, boost, jump]
+        sub: [root, pre, boost, jump]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci || npm install
-      - run: npm run build
-      - uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+    - name: Checkout ${{ matrix.branch }}
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ matrix.branch }}
+        path: src-${{ matrix.sub }}
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+        cache-dependency-path: src-${{ matrix.sub }}/package-lock.json
+    - name: Install
+      working-directory: src-${{ matrix.sub }}
+      run: npm ci || npm install --no-audit --no-fund
+    - name: Vite build
+      working-directory: src-${{ matrix.sub }}
+      run: npm run build
+    - name: Collect into site/
+      if: matrix.sub == 'root'
+      run: |
+        mkdir -p site
+        cp -r src-root/dist/* site/
+        for s in pre boost jump; do
+          mkdir -p "site/$s"
+          cp -r "src-$s/dist/"* "site/$s"/ 2>/dev/null || echo "warn: src-$s/dist not found"
+        done
+        echo "=== published index.html files ==="
+        find site -maxdepth 2 -name index.html -print
+    - name: Upload Pages artifact
+      if: matrix.sub == 'root'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: site
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref_name == 'main' || github.ref_name == 'pre' || github.ref_name == 'boost' || github.ref_name == 'jump'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
