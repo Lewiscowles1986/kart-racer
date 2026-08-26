@@ -1,0 +1,49 @@
+name: Build & deploy to GitHub Pages
+
+# Any branch that has this workflow builds on push and publishes to GitHub Pages.
+on:
+  push:
+    branches:
+      - main
+      - pre
+      - boost
+      - jump
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci || npm install
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main' || github.ref_name == 'pre' || github.ref_name == 'boost' || github.ref_name == 'jump'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
