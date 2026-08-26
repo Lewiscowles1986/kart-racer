@@ -8,7 +8,7 @@ name: Build & deploy to GitHub Pages
 #       /jump   -> jump  branch (+ jump ramps)
 on:
   push:
-    branches: [main]
+    branches: [main, pre, boost, jump]
   workflow_dispatch: {}
 
 permissions:
