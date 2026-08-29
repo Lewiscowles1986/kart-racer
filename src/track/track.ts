@@ -90,7 +90,9 @@ export function buildScene(scene: THREE.Scene, track: Track, opts?: { trees?: [n
   group.add(road);
 
   // kerbs
-  const curbMat = new THREE.MeshStandardMaterial({ map: curbTexture(), roughness: 0.3, metalness: 0 });
+  // M2-close (critic item 4): roughness 0.3 gave the white tiles a blown
+  // specular streak that the bloom pass turned into a lens-flare star.
+  const curbMat = new THREE.MeshStandardMaterial({ map: curbTexture(), roughness: 0.85, metalness: 0 });
   const ci = halfWidth - 0.25, co = halfWidth + 1.0;
   for (const s of [1, -1]) {
     const curb = new THREE.Mesh(buildRibbon(samples, s > 0 ? ci : -co, s > 0 ? co : -ci, 4), curbMat);
@@ -231,17 +233,19 @@ function addStartBanner(group: THREE.Group, track: Track) {
   const p = track.samples[0];
   const bx = p.x - p.tx * 6, bz = p.z - p.tz * 6;
   const g = new THREE.Group();
-  const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5, 0.6), mat);
+  // M2-close (critic item 1): the chase camera clipped the wide-drift line and
+  // a post filled the screen — the gate is taller and stands further out now.
+  const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, 6, 0.6), mat);
   const right = left.clone();
-  const span = 10;
+  const span = 13.5;
   const dirX = p.nx, dirZ = p.nz;
-  left.position.set(dirX * span, 2.5, dirZ * span);
-  right.position.set(-dirX * span, 2.5, -dirZ * span);
+  left.position.set(dirX * span, 3, dirZ * span);
+  right.position.set(-dirX * span, 3, -dirZ * span);
   const beam = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, span * 2), new THREE.MeshStandardMaterial({ color: 0x2b3a55, roughness: 0.5, metalness: 0 }));
-  beam.position.y = 4.9;
-  beam.lookAt(new THREE.Vector3(bx + dirX * 1, 4.9, bz + dirZ * 1));
+  beam.position.y = 5.9;
+  beam.lookAt(new THREE.Vector3(bx + dirX * 1, 5.9, bz + dirZ * 1));
   g.add(left, right, beam);
-  g.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
+  g.traverse((o) => { o.castShadow = false; }); // banner is skyward; its shadow band read as an obstacle
   g.position.set(bx, terrainHeight(bx, bz), bz);
   g.rotation.y = Math.atan2(p.tx, p.tz);
   group.add(g);

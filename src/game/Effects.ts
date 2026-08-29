@@ -105,17 +105,20 @@ export class Effects {
     this.gravity[i] = opts.gravity ?? 0;
   }
 
-  boost(pos: THREE.Vector3, dir: THREE.Vector3, color: THREE.Color = new THREE.Color(1, 0.6, 0.2), n = 6) {
+  boost(pos: THREE.Vector3, dir: THREE.Vector3, color: THREE.Color = new THREE.Color(1, 0.6, 0.2), n = 4) {
     for (let k = 0; k < n; k++) {
       const v = new THREE.Vector3(
         -dir.x * (6 + Math.random() * 5),
         (Math.random() - 0.2) * 3,
         -dir.z * (6 + Math.random() * 5)
       );
+      // M2-close (critic): flames pooled into one opaque blob that hid the
+      // boosting kart — smaller, sparser, shorter-lived particles read as a
+      // trail instead.
       this.spawn(
         new THREE.Vector3(pos.x, pos.y + 0.3, pos.z),
-        v, color.clone().multiplyScalar(0.7 + Math.random() * 0.5),
-        { life: 0.35 + Math.random() * 0.3, size: 0.4 + Math.random() * 0.4 }
+        v, color.clone().multiplyScalar(0.7 + Math.random() * 0.4),
+        { life: 0.25 + Math.random() * 0.2, size: 0.18 + Math.random() * 0.14 }
       );
     }
   }

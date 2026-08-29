@@ -618,7 +618,7 @@ export class Game {
     tex.colorSpace = THREE.SRGBColorSpace;
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
     s.position.set(0, 2.7, 0); // floats above the kart, root-yaws never tilt it
-    s.scale.set(2.6, 0.65, 1);
+    s.scale.set(3.1, 0.78, 1); // M2-close: legible past ~40m (critic item 5)
     return s;
   }
 }

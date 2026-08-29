@@ -370,12 +370,13 @@ export class HUD {
     ctx.beginPath();
     samples.forEach(([x, z], i) => { i ? ctx.lineTo(sx(x), sz(z)) : ctx.moveTo(sx(x), sz(z)); });
     ctx.closePath(); ctx.stroke();
-    // AI + player dots
+    // AI + player dots (M2-close: bigger + outlined so 8 racers stay readable)
     for (const d of this.kartDots) {
       if (d.x === undefined) continue;
       ctx.fillStyle = d.isPlayer ? '#ffd23f' : d.color || '#fff';
-      ctx.beginPath(); ctx.arc(sx(d.x), sz(d.z!), d.isPlayer ? 4.5 : 3, 0, 7); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = d.isPlayer ? 1.5 : 0.8; ctx.stroke();
+      const r = d.isPlayer ? 5.5 : 4;
+      ctx.beginPath(); ctx.arc(sx(d.x), sz(d.z!), r, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(10,14,24,0.9)'; ctx.lineWidth = 1.2; ctx.stroke();
     }
   }
 

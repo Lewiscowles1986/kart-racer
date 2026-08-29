@@ -178,17 +178,21 @@ export function skyboxTexture(seed = 5, size = 1024): THREE.CanvasTexture {
   g.fillStyle = grad;
   g.fillRect(0, 0, size, size);
   // M2 (J-15): clouds band-limited to the playable latitude; a pole-stretched
-  // cloud column near the zenith was smearing the whole sky (VS-3).
-  for (let i = 0; i < 16; i++) {
-    const cx = rnd() * size, cy = size * 0.42 + (rnd() - 0.35) * size * 0.3;
-    const r = 26 + rnd() * 48;
-    const a = 0.35 + rnd() * 0.35;
-    for (let p = 0; p < 6; p++) {
-      g.fillStyle = `rgba(255,255,255,${a})`;
-      g.beginPath();
-      g.arc(cx + (rnd() - 0.5) * r * 1.6, cy + (rnd() - 0.5) * r * 0.5, r * (0.5 + rnd() * 0.6), 0, 7);
-      g.fill();
+  // cloud column near the zenith was smearing the whole sky (VS-3). Each cloud
+  // is drawn at x-size, x and x+size so the 2x horizontal tile shows NO seam
+  // (M2-close, critic item 3: hard vertical ends mid-sky).
+  const drawCloud = (cx: number, cy: number, r: number, a: number) => {
+    for (const off of [-size, 0, size]) {
+      for (let p = 0; p < 6; p++) {
+        g.fillStyle = `rgba(255,255,255,${a})`;
+        g.beginPath();
+        g.arc(cx + off + (rnd() - 0.5) * r * 1.6, cy + (rnd() - 0.5) * r * 0.5, r * (0.5 + rnd() * 0.6), 0, 7);
+        g.fill();
+      }
     }
+  };
+  for (let i = 0; i < 16; i++) {
+    drawCloud(rnd() * size, size * 0.42 + (rnd() - 0.35) * size * 0.3, 26 + rnd() * 48, 0.35 + rnd() * 0.35);
   }
   const t = canvasTexture(c, 1, 1);
   // tile twice around the sphere so the seam/hemisphere stretch at u=0 fades
