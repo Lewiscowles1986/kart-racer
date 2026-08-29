@@ -1,210 +1,134 @@
 import * as THREE from 'three';
-import { ITEM, ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS, JUMPS } from '../config';
+import { ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS, JUMPS } from '../config';
 import { itemBoxTexture } from '../util/tex';
 import { terrainHeight } from '../track/track';
+import { ItemsSim } from '../sim/itemsSim';
+import type { Placements, SimBanana, SimItemBox } from '../sim/itemsSim';
 import type { Kart, Track, World } from './Kart';
 
-interface ItemBox {
-  mesh: THREE.Group;
-  frac: number; // arc-length fraction of the track (0..1) for relayout
-  lateral: number;
-  respawn: number;
-  taken: boolean;
-}
-
-interface Banana {
-  mesh: THREE.Group;
-  pos: THREE.Vector3;
-  dropper: Kart;
-  dropT: number;
-}
-
-interface Pad {
-  mesh: THREE.Group;
-  frac: number;
-  lateral: number;
-  index: number; // nearest sample index, used for proximity detection
-}
-
-// Per-track placements (boxes/pads/jumps along the road). Defaults mirror the
-// shared config; editor-authored tracks supply their own.
-export interface Placements {
-  itemBoxes: { frac: number; lateral: number }[];
-  boostPads: { frac: number; lateral: number }[];
-  jumps: { frac: number; lateral: number }[];
-}
+export type { Placements, SimItemBox } from '../sim/itemsSim';
 
 // Item boxes, the roulette that picks the item, and the active items on the
-// road (bananas) plus their effects (mushroom boost, star/shield invincibility).
+// road (bananas) — the FACADE. All race-outcome state and logic live in
+// ItemsSim (src/sim/itemsSim.ts, M1 step 6 / J-6); this class only owns
+// Three.js meshes and mirrors the sim records into them.
 export class Items {
-  scene: THREE.Scene;
-  track: Track;
   world: World;
+  sim: ItemsSim;
+  #track: Track;
+  #scene: THREE.Scene;
 
-  boxes: ItemBox[];
-  bananas: Banana[];
-  pads: Pad[];
-  jumps: Pad[];
-  placements: Placements;
+  #boxMeshes: THREE.Group[] = [];
+  #padMeshes: THREE.Group[] = [];
+  #jumpMeshes: THREE.Group[] = [];
+  #bananaMeshes = new Map<SimBanana, THREE.Group>();
 
   constructor({ scene, track, world }: { scene: THREE.Scene; track: Track; world: World }) {
-    this.scene = scene;
-    this.track = track;
+    this.#scene = scene;
+    this.#track = track;
     this.world = world;
-
-    this.boxes = [];
-    this.bananas = [];
-    this.pads = [];
-    this.jumps = [];
-    this.placements = {
+    this.sim = new ItemsSim(track);
+    this.setPlacements({
       itemBoxes: ITEM_BOX_PLACEMENTS.map((frac, i) => ({ frac, lateral: i % 2 === 0 ? -1.6 : 1.6 })),
       boostPads: BOOST_PADS,
       jumps: JUMPS,
-    };
-    this.rebuild();
+    });
   }
 
-  // Recreate boxes/pads/jumps from the current placements (called when a track's
-  // level definition changes). Removes old meshes and re-lays them out.
-  rebuild() {
-    for (const b of this.boxes) this.scene.remove(b.mesh);
-    for (const pd of this.pads) this.scene.remove(pd.mesh);
-    for (const j of this.jumps) this.scene.remove(j.mesh);
-    this.boxes = [];
-    this.pads = [];
-    this.jumps = [];
-    this.buildBoxes();
-    this.buildPads();
-    this.buildJumps();
-    this.relayout();
+  // kept as a property for v1 compatibility (Game reassigns it per track build)
+  get track(): Track { return this.#track; }
+  set track(t: Track) {
+    this.#track = t;
+    this.sim = new ItemsSim(t);
   }
 
   setPlacements(p: Placements) {
-    this.placements = p;
-    this.rebuild();
+    this.sim.setPlacements(p);
+    this.#rebuildMeshes();
   }
 
-  buildBoxes() {
+  #clearMeshes(): void {
+    for (const m of [...this.#boxMeshes, ...this.#padMeshes, ...this.#jumpMeshes, ...this.#bananaMeshes.values()]) {
+      this.#scene.remove(m);
+    }
+    this.#boxMeshes = []; this.#padMeshes = []; this.#jumpMeshes = [];
+    this.#bananaMeshes.clear();
+  }
+
+  #rebuildMeshes(): void {
+    this.#clearMeshes();
     const tex = itemBoxTexture();
-    const mat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x222200 });
-    for (const { frac, lateral } of this.placements.itemBoxes) {
+    const boxMat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x222200 });
+    for (const b of this.sim.boxes) {
       const box = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), mat);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), boxMat);
       const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.18, depthWrite: false }));
       body.position.y = 0.65; glow.position.y = 0.7;
       box.add(body, glow);
-      this.placeOnTrack(box, frac * this.track.totalLen, lateral);
-      this.scene.add(box);
-      this.boxes.push({ mesh: box, frac, lateral, respawn: 0, taken: false });
+      this.#placeOnTrack(box, b.x, b.z);
+      this.#scene.add(box);
+      this.#boxMeshes.push(box);
     }
-  }
-
-  // Reposition every box on the CURRENT track (e.g. after a map is selected or a
-  // track is rebuilt). Each box keeps its fraction/lateral, so it always lands
-  // on the asphalt of the track actually being raced.
-  relayout() {
-    for (const b of this.boxes) {
-      this.placeOnTrack(b.mesh, b.frac * this.track.totalLen, b.lateral);
-    }
-    for (const pd of this.pads) {
-      const u = pd.frac * this.track.totalLen;
-      pd.index = this.track.sampleAtU(u).index;
-      this.placeOnTrack(pd.mesh, u, pd.lateral);
-    }
-    for (const j of this.jumps) {
-      const u = j.frac * this.track.totalLen;
-      j.index = this.track.sampleAtU(u).index;
-      this.#placeJump(j.mesh, u, j.lateral);
-    }
-  }
-
-  #placeJump(group: THREE.Group, u: number, lateral: number) {
-    const { sample } = this.track.sampleAtU(u);
-    const x = sample.x + sample.nx * lateral;
-    const z = sample.z + sample.nz * lateral;
-    group.position.set(x, terrainHeight(x, z), z);
-    group.rotation.y = Math.atan2(sample.tx, sample.tz); // face the direction of travel
-  }
-
-  // Bright boost pads on the road surface. Driving onto one gives a moderate
-  // speed kick via Kart.applyPad().
-  buildPads() {
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xff8c00, emissive: 0xff6a00, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0 });
     const arrowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.55 });
-    for (const { frac, lateral } of this.placements.boostPads) {
+    for (const pd of this.sim.pads) {
       const pad = new THREE.Group();
       const plate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 4.4), plateMat);
       plate.position.y = 0.07;
       pad.add(plate);
-      // forward chevron arrows
       for (let i = 0; i < 3; i++) {
         const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 0.34), arrowMat);
         arrow.position.set(0, 0.12, -1.3 + i * 1.3);
         pad.add(arrow);
       }
-      const u = frac * this.track.totalLen;
-      const index = this.track.sampleAtU(u).index;
-      this.placeOnTrack(pad, u, lateral);
-      this.scene.add(pad);
-      this.pads.push({ mesh: pad, frac, lateral, index });
+      this.#placeOnTrack(pad, pd.x, pd.z);
+      this.#scene.add(pad);
+      this.#padMeshes.push(pad);
     }
-  }
-
-  // Sloped launch ramps on the road. A kart driving over one (fast enough) is
-  // launched into the air by Kart.launch().
-  buildJumps() {
     const topMat = new THREE.MeshStandardMaterial({ color: 0xe0a83f, emissive: 0x6a4a00, emissiveIntensity: 0.4, roughness: 0.6 });
     const railMat = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.8 });
-    for (const { frac, lateral } of this.placements.jumps) {
-      const u = frac * this.track.totalLen;
-      const index = this.track.sampleAtU(u).index;
+    for (const j of this.sim.jumps) {
       const ramp = new THREE.Group();
-      // sloped top surface rising toward +Z (the direction of travel)
       const top = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 5.2), topMat);
       top.rotation.x = -0.45;
       top.position.y = 0.2;
       ramp.add(top);
-      // side rails framing the launch
       for (const s of [-1, 1]) {
         const rail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 5.4), railMat);
         rail.rotation.x = -0.45;
         rail.position.set(s * 1.4, 0.22, 0);
         ramp.add(rail);
       }
-      this.#placeJump(ramp, u, lateral);
-      this.scene.add(ramp);
-      this.jumps.push({ mesh: ramp, frac, lateral, index });
+      // face the direction of travel (v1 #placeJump behaviour)
+      const { sample } = this.#track.sampleAtU(j.frac * this.#track.totalLen);
+      ramp.position.set(j.x, terrainHeight(j.x, j.z), j.z);
+      ramp.rotation.y = Math.atan2(sample.tx, sample.tz);
+      this.#scene.add(ramp);
+      this.#jumpMeshes.push(ramp);
     }
   }
 
-  placeOnTrack(obj: THREE.Object3D, u: number, lateral: number) {
-    const { sample } = this.track.sampleAtU(u);
-    const x = sample.x + sample.nx * lateral;
-    const z = sample.z + sample.nz * lateral;
+  #placeOnTrack(obj: THREE.Object3D, x: number, z: number) {
     obj.position.set(x, terrainHeight(x, z), z);
     obj.rotation.y = 0;
   }
 
   // Full reset for a new race: clear dropped bananas and restore all boxes.
   reset() {
-    for (const b of this.bananas) { this.scene.remove(b.mesh); }
-    this.bananas = [];
-    for (const b of this.boxes) { b.taken = false; b.respawn = 0; b.mesh.visible = true; }
+    this.sim.reset();
+    for (const m of this.#bananaMeshes.values()) this.#scene.remove(m);
+    this.#bananaMeshes.clear();
   }
 
   // Roulette a random item with weighted odds (children-friendly, no rare-only).
   // Deterministic: draws from the seeded 'items' stream (M1 step 5, J-5).
   rollItem(): 'banana' | 'mushroom' | 'star' {
-    const total = ITEM.weights.banana + ITEM.weights.mushroom + ITEM.weights.star;
-    let r = this.world.rng.stream('items')() * total;
-    if ((r -= ITEM.weights.banana) < 0) return 'banana';
-    if ((r -= ITEM.weights.mushroom) < 0) return 'mushroom';
-    return 'star';
+    return this.sim.rollItem(this.world.rng.stream('items'));
   }
 
   use(kart: Kart, id: string) {
     if (id === 'banana') {
-      this.dropBanana(kart);
+      this.#dropBanana(kart);
     } else if (id === 'mushroom') {
       kart.boostT = PHYS.boost.mushroom.time / 1000;
       this.world.events.emit({ t: 'sfx', name: 'boost' });
@@ -217,15 +141,13 @@ export class Items {
     }
   }
 
-  dropBanana(kart: Kart) {
-    const back = new THREE.Vector3(-Math.sin(kart.yaw), 0, -Math.cos(kart.yaw));
-    const px = kart.pos.x + back.x * 1.8;
-    const pz = kart.pos.z + back.z * 1.8;
+  #dropBanana(kart: Kart) {
+    const b = this.sim.addBanana(kart, kart.yaw, terrainHeight);
     const mesh = this.#makeBananaMesh();
-    mesh.position.set(px, terrainHeight(px, pz) + 0.18, pz);
-    mesh.rotation.y = Math.random() * 6.28;
-    this.scene.add(mesh);
-    this.bananas.push({ mesh, pos: new THREE.Vector3(px, 0, pz), dropper: kart, dropT: 0 });
+    mesh.position.set(b.x, terrainHeight(b.x, b.z) + 0.18, b.z);
+    mesh.rotation.y = Math.random() * 6.28; // presentation-only spin (ADR-0003)
+    this.#scene.add(mesh);
+    this.#bananaMeshes.set(b, mesh);
   }
 
   #makeBananaMesh(): THREE.Group {
@@ -238,88 +160,40 @@ export class Items {
     return g;
   }
 
-  // ---- per-frame update ----
+  // ---- per-frame update: sim step, then mirror visuals ----
   update(dt: number, karts: Kart[]) {
-    // boost pads: any kart over a pad gets a speed kick (refreshed while it stays
-    // on it). Proximity is compared in SAMPLE-INDEX space because sampleAtU (used
-    // to place) and worldToTrack (used to detect) disagree on arc length.
-    const M = this.track.samples.length;
-    for (const pd of this.pads) {
-      for (const k of karts) {
-        const t = this.track.worldToTrack(k.pos, k.trackHint);
-        let di = Math.abs(t.index - pd.index);
-        di = Math.min(di, M - di); // wrap around the loop
-        if (di < 9 && Math.abs(t.lat) < 2.3) k.applyPad();
-      }
-    }
+    this.sim.update(dt, karts, this.world.events, () => this.rollItem());
+    this.#syncVisuals(dt);
+  }
 
-    // jump ramps: a fast kart over one launches into the air (no-op if already up)
-    for (const j of this.jumps) {
-      for (const k of karts) {
-        if (k.airborne) continue;
-        const t = this.track.worldToTrack(k.pos, k.trackHint);
-        let di = Math.abs(t.index - j.index);
-        di = Math.min(di, M - di);
-        if (di < 9 && Math.abs(t.lat) < 2.3) k.launch();
-      }
-    }
-
-    // animate + respawn boxes
+  #syncVisuals(dt: number) {
+    // boxes: spin + bob + visibility from sim state (index-aligned arrays)
     const now = this.world.timeMs;
-    for (const b of this.boxes) {
-      if (b.respawn > 0) {
-        b.respawn -= dt;
-        if (b.respawn <= 0) { b.taken = false; b.mesh.visible = true; }
-      }
-      if (b.mesh.visible) {
-        b.mesh.rotation.y += dt * 2.4;
-        b.mesh.position.y = terrainHeight(b.mesh.position.x, b.mesh.position.z) + 0.7 + Math.sin(now / 300) * 0.12;
-      }
-      // pickup (starts the roulette reveal; item locks in when it resolves)
-      if (!b.taken && b.mesh.visible) {
-        for (const k of karts) {
-          if (k.item || k.rouletteT > 0) continue;
-          const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-          // generous pickup radius (1.8 world units) so boxes are grabbed even at
-          // top speed / from the road centre, not just on a perfect line
-          if (dx * dx + dz * dz < 1.8 * 1.8) {
-            k.rouletteT = ITEM.rouletteMs / 1000;
-            this.world.events.emit({ t: 'sfx', name: 'pickup' });
-            this.world.events.emit({ t: 'ring', at: { x: k.pos.x, y: k.pos.y + 0.6 * KART_SCALE, z: k.pos.z }, rgb: [1, 0.9, 0.3], max: 1.6 });
-            b.taken = true; b.respawn = ITEM.boxRespawnMs / 1000; b.mesh.visible = false;
-            break;
-          }
-        }
+    for (let i = 0; i < this.sim.boxes.length; i++) {
+      const b: SimItemBox = this.sim.boxes[i];
+      const mesh = this.#boxMeshes[i];
+      mesh.visible = !b.taken; // taken implies respawn countdown; v1 identical
+      if (!b.taken) {
+        mesh.rotation.y += dt * 2.4;
+        mesh.position.y = terrainHeight(b.x, b.z) + 0.7 + Math.sin(now / 300) * 0.12;
       }
     }
-
-    // resolve roulette reveals into real items
-    for (const k of karts) {
-      if (k.rouletteT > 0) {
-        k.rouletteT -= dt;
-        if (k.rouletteT <= 0) { k.rouletteT = 0; k.item = this.rollItem(); }
+    // bananas: add/remove meshes to match the sim record list
+    for (const b of this.sim.bananas) {
+      let mesh = this.#bananaMeshes.get(b);
+      if (!mesh) {
+        mesh = this.#makeBananaMesh();
+        mesh.position.set(b.x, terrainHeight(b.x, b.z) + 0.18, b.z);
+        this.#scene.add(mesh);
+        this.#bananaMeshes.set(b, mesh);
       }
+      mesh.rotation.y += dt * 2;
     }
-
-    // bananas: drop protection then make hazardous
-    const toRemove: Banana[] = [];
-    for (const b of this.bananas) {
-      b.dropT += dt;
-      b.mesh.rotation.y += dt * 2;
-      for (const k of karts) {
-        if (b.dropT < 0.4) continue; // avoid immediate self-hit
-        if (k.shieldT > 0) continue;
-        if (k === b.dropper) continue; // a kart never slips on its own banana
-        const dx = k.pos.x - b.mesh.position.x, dz = k.pos.z - b.mesh.position.z;
-        if (dx * dx + dz * dz < 0.9 * 0.9) {
-          if (k.hitBanana()) { toRemove.push(b); break; }
-        }
+    for (const [b, mesh] of this.#bananaMeshes) {
+      if (!this.sim.bananas.includes(b)) {
+        this.#scene.remove(mesh);
+        this.#bananaMeshes.delete(b);
       }
-    }
-    for (const b of toRemove) {
-      this.scene.remove(b.mesh);
-      const i = this.bananas.indexOf(b);
-      if (i >= 0) this.bananas.splice(i, 1);
     }
   }
 }

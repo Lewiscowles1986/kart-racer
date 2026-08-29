@@ -7,7 +7,7 @@ vi.mock('../src/util/tex', () => ({
 
 import { Rng } from '../src/sim/rng';
 import { ITEM } from '../src/config';
-import { Items } from '../src/game/Items';
+import { ItemsSim } from '../src/sim/itemsSim';
 
 const WEIGHT_TOTAL = ITEM.weights.banana + ITEM.weights.mushroom + ITEM.weights.star;
 
@@ -19,7 +19,7 @@ function pick(r) {
 }
 
 // rollItem bound to a stub world: exercises exactly the seeded-draw path
-const rollWith = (rng) => Items.prototype.rollItem.call({ world: { rng } });
+const rollWith = (rng) => ItemsSim.prototype.rollItem.call({}, () => rng.stream('items')());
 
 describe('seeded item roulette (M1 step 5, J-5)', () => {
   it('same seed => identical item sequence', () => {
