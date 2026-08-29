@@ -7,3 +7,6 @@ shots/
 
 # screenshots
 *.png
+
+# local npm cache (worktree-local, untracked)
+.npm-cache/
