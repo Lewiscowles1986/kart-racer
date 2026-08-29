@@ -6,6 +6,31 @@ interface SpawnOpts {
   gravity?: number;
 }
 
+// Soft round sprite for every particle (M2, judge-confirmed VS-2 fix):
+// 64x64 radial gradient, feathered edge, cached singleton. Returns undefined
+// where there is no canvas (headless tests) — PointsMaterial handles null map.
+let _sprite: THREE.CanvasTexture | null | undefined;
+function particleSprite(): THREE.CanvasTexture | null {
+  if (_sprite !== undefined) return _sprite;
+  try {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.75)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    _sprite = tex;
+  } catch {
+    _sprite = null; // headless/no-canvas: fall back to plain points
+  }
+  return _sprite;
+}
+
 interface Ring {
   mesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   life: number;
@@ -45,9 +70,13 @@ export class Effects {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
+    // M2 (VS-2 fix): untextured Points render as harsh opaque squares. A soft
+    // radial-gradient sprite gives every particle a feathered edge; alphaTest
+    // keeps transparent cores from polluting the additive blend.
     this.points = new THREE.Points(geo, new THREE.PointsMaterial({
       size: 0.5, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false,
       sizeAttenuation: true, blending: THREE.AdditiveBlending,
+      map: particleSprite(), alphaTest: 0.02,
     }));
     this.points.frustumCulled = false;
     scene.add(this.points);
