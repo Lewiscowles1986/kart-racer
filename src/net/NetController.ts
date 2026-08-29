@@ -85,13 +85,19 @@ export class NetController {
     this.onStart?.(seed, this.hostName());
   }
 
-  // Each human's kart index is fixed by the lobby; AI karts fill the rest.
-  humanKartCount(): number {
-    return this.players.length;
-  }
+  // M3 (J-29): drop detection — a human slot silent >dropAfterMs is "dropped":
+  // every peer then simulates that kart with LOCAL AI (deterministic, same
+  // seed) so the race never stalls. Rejoin restores the slot to human control.
+  dropAfterMs = 5000;
+  #lastSeen = new Map<number, number>(); // kartIndex -> performance.now() of last CMD INPUT
+  droppedKarts = new Set<number>();
+  onDrop?: (kartIndex: number) => void;
+  onRestart?: (seed: number) => void;
 
   // The kart index if kart i is human-controlled in this session, else null.
+  // Dropped karts return null: every peer runs its local AI for them (J-29).
   humanKartIndex(kartIndex: number): number | null {
+    if (this.droppedKarts.has(kartIndex)) return null;
     if (!this.players.length) return this.isHost ? (kartIndex === 0 ? 0 : null) : null;
     const p = this.players.find((pl) => pl.kartIndex === kartIndex);
     return p ? p.kartIndex : null;
@@ -109,8 +115,45 @@ export class NetController {
   // --- per-tick API (Game.#simUpdate / #updateKarts) -------------------------
   preTick(frame: InputFrame): InputFrame[] | null {
     this.#lastFrame = frame;
+    this.#noteSeenIfHuman(frame);
     this.lockstep.submitFrame(frame);
     return this.lockstep.tryAdvance();
+  }
+
+  // Liveness + drop sweep: call once per tick with the local wall clock.
+  // Drop threshold check is net-layer work (wall clock is its domain; the sim
+  // stays pure — the RESULT (a dropped flag) is what the sim sees).
+  monitorDrop(now = performance.now()): void {
+    for (const p of this.players) {
+      if (p.isLocal || this.droppedKarts.has(p.kartIndex)) continue;
+      const last = this.#lastSeen.get(p.kartIndex) ?? this.#connectedAt;
+      if (now - last > this.dropAfterMs) {
+        this.droppedKarts.add(p.kartIndex);
+        this.transport.send({ t: 'DROP', reliable: true, payload: { kart: p.kartIndex } });
+        this.onDrop?.(p.kartIndex);
+      }
+    }
+  }
+
+  #connectedAt = performance.now();
+
+  #noteSeenIfHuman(_frame: InputFrame): void {
+    // liveness is carried by the CMD INPUT stream itself; Lockstep stores
+    // remote frames — we piggyback the timestamp in the shared handler below.
+  }
+
+  // called by the transport handler chain for EVERY inbound message
+  #touch(transportId: string, now = performance.now()): void {
+    const p = this.players.find((pl) => pl.transportId === transportId);
+    if (p && this.droppedKarts.delete(p.kartIndex)) {
+      this.onDrop?.(-1 - p.kartIndex); // negative index = un-drop signal (rejoined)
+    }
+    if (p) this.#lastSeen.set(p.kartIndex, now);
+  }
+
+  sendRestart(seed: number): void {
+    this.transport.send({ t: 'RESTART', reliable: true, payload: { seed, protocol: PROTOCOL } });
+    this.onRestart?.(seed);
   }
 
   lastSentFrame(): InputFrame {
@@ -128,7 +171,22 @@ export class NetController {
 
   // --- inbound ---------------------------------------------------------------
   #onMessage(msg: NetMessage, from: string): void {
+    this.#touch(from); // any inbound traffic = that slot is alive
     if (msg.t === 'CMD INPUT' || msg.t === 'STATEHASH') return; // Lockstep owns these
+    if (msg.t === 'RESTART') {
+      const p = msg.payload as { seed?: number; protocol?: number };
+      if (p.protocol !== PROTOCOL || typeof p.seed !== 'number') return;
+      this.onRestart?.(p.seed);
+      return;
+    }
+    if (msg.t === 'DROP') {
+      const p = msg.payload as { kart?: number };
+      if (typeof p.kart === 'number' && !this.droppedKarts.has(p.kart)) {
+        this.droppedKarts.add(p.kart);
+        this.onDrop?.(p.kart);
+      }
+      return;
+    }
     if (msg.t === 'HELLO' && this.isHost) {
       const p = msg.payload as { name?: string; protocol?: number };
       if (p.protocol !== PROTOCOL || !p.name) return;

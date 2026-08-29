@@ -73,4 +73,34 @@ describe('NetController lobby + tick bridge (M3 step 3, J-26/J-28)', () => {
     // both recorded locally then published; each compares on receipt
     expect(flips.length).toBeGreaterThan(0);
   });
+
+  it('a silent guest slot becomes dropped: AI backfill takes over, race never stalls (J-29)', async () => {
+    const { host, guest } = lobby();
+    guest.join('Zed');
+    await drain();
+    const drops = [];
+    guest.onDrop = (k) => drops.push(k); // guest hears the host's DROP broadcast
+    // force the clock: guest slot silent beyond the threshold
+    host.dropAfterMs = 10;
+    const { human, aiBackfilled } = { human: host.humanKartIndex(1), aiBackfilled: null };
+    expect(human).toBe(1);
+    const later = performance.now() + 20;
+    host.monitorDrop(later);
+    await drain();
+    expect(host.droppedKarts.has(1)).toBe(true);
+    expect(guest.droppedKarts.has(1)).toBe(true); // propagated via DROP msg
+    expect(drops).toEqual([1]);
+    expect(host.humanKartIndex(1)).toBeNull(); // AI takes the slot on every peer
+  });
+
+  it('rematch: host sendRestart replays the agreed seed on both peers', async () => {
+    const { host, guest } = lobby();
+    guest.join('Zed');
+    await drain();
+    const restarts = [];
+    guest.onRestart = (seed) => restarts.push(seed);
+    host.sendRestart(0x77);
+    await drain();
+    expect(restarts).toEqual([0x77]);
+  });
 });

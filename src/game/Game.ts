@@ -309,7 +309,10 @@ export class Game {
         asHost: isHost,
         localName: params.get('name') || undefined,
       });
+      // M3 (J-29): dropped players -> AI backfill; rematch stays in-session
       this.net.onStart = (seed) => this.beginNetRace(seed);
+      this.net.onRestart = (seed) => this.beginNetRace(seed);
+      this.net.onDrop = () => { /* humanKartIndex now returns null for the slot: AI drives it on every peer */ };
       // zero-UI lobby flow: as soon as one guest joins, the host starts
       this.net.onLobby = (players, isHost2) => {
         if (isHost2 && players.length >= 2 && this.state === 'MENU') {
@@ -333,7 +336,13 @@ export class Game {
     }
 
     this.hud.onStart = () => this.startRace();
-    this.hud.onRestart = () => this.restart();
+    this.hud.onRestart = () => {
+      // M3 judge bar: rematch — the host replays the SAME seed so every peer
+      // stays lockstepped; single-player just restarts locally.
+      if (this.net && this.net.isHost) this.net.sendRestart(this.rngSeed);
+      else if (this.net) { /* guest waits for the host's RESTART */ }
+      else this.restart();
+    };
     this.hud.onTouch = (act, down) => this.input.setTouch(act, down);
     this.hud.onPause = () => this.togglePause();
     this.hud.onMute = () => this.toggleMute();
@@ -491,6 +500,7 @@ export class Game {
       // (20Hz) and fires onDesync on peer mismatch.
       if (this.net) {
         this.net.postTick(this.netTick++, hashRace(this.karts, this.items.sim, this.timeMs, this.raceTimeMs));
+        this.net.monitorDrop(); // J-29: AI-backfill a slot silent >5s
       }
     } else if (this.state === 'FINISHED') {
       // karts are parked (speed forced to 0); keep them static by disabling input
