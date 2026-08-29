@@ -1,0 +1,89 @@
+{
+  "name": "sunny-smoke-600",
+  "seed": 24301,
+  "trackId": "sunny",
+  "kartCount": 8,
+  "ticks": 600,
+  "commands": [
+    {
+      "atTick": 0,
+      "kart": 0,
+      "input": {
+        "steer": 0.6,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 10,
+      "kart": 0,
+      "input": {
+        "steer": 0.2,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 120,
+      "kart": 0,
+      "input": {
+        "steer": -0.6,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 240,
+      "kart": 0,
+      "input": {
+        "steer": 0.6,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 360,
+      "kart": 0,
+      "input": {
+        "steer": -0.6,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 480,
+      "kart": 0,
+      "input": {
+        "steer": 0.6,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    }
+  ],
+  "checkpoints": [
+    {
+      "tick": 0,
+      "hash": "27010052"
+    },
+    {
+      "tick": 240,
+      "hash": "6da1a509"
+    },
+    {
+      "tick": 480,
+      "hash": "a4b59dc8"
+    }
+  ]
+}
