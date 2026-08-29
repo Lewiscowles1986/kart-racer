@@ -5,6 +5,7 @@ import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
 import type { InputFrame } from './Input';
 import type { SimEventQueue } from '../sim/events';
+import type { Rng } from '../sim/rng';
 import type { Items } from './Items';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -24,6 +25,7 @@ export interface World {
   timeMs: number;
   totalLaps: number;
   events: SimEventQueue;
+  rng: Rng;
   items: Items;
 }
 

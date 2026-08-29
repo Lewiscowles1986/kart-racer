@@ -15,6 +15,7 @@ import { Audio } from './Audio';
 import { createKartMesh } from './KartVisual';
 import { createTicker, TICK_MS } from '../sim/loop';
 import { SimEventQueue } from '../sim/events';
+import { Rng } from '../sim/rng';
 import { EventBridge } from './EventBridge';
 import type { InputFrame } from './Input';
 
@@ -50,6 +51,8 @@ export class Game {
   simTicker = createTicker({ tickMs: TICK_MS, maxCatchUp: 5, onTick: (dt) => this.#simUpdate(dt) });
   // sim-visible event bus (M1 J-4): the ONLY side-channel sim code may use
   events = new SimEventQueue();
+  // seeded deterministic RNG (M1 J-5): single random source for the sim
+  rng: Rng;
   #eventBridge!: EventBridge;
 
   renderer!: THREE.WebGLRenderer;
@@ -86,6 +89,10 @@ export class Game {
     this.state = 'MENU';
     this.timeMs = 0;
     this.totalLaps = RACE.totalLaps;
+    // seed: ?seed=<int> (headless QA pins a seed); deterministic default so
+    // two loads of the same URL produce the same item/AI stream (J-5/J-9)
+    const seedParam = Number(new URLSearchParams(location.search).get('seed'));
+    this.rng = new Rng(Number.isFinite(seedParam) && seedParam !== 0 ? seedParam : 0x5eed);
 
     this.#setupRenderer();
     this.#setupScene();

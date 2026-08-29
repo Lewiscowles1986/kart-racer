@@ -1,5 +1,6 @@
 import type { Kart, Track, World } from './Kart';
 import type { InputFrame } from './Input';
+import type { RngStream } from '../sim/rng';
 
 function wrapAngle(a: number): number {
   while (a > Math.PI) a -= 2 * Math.PI;
@@ -12,10 +13,12 @@ function wrapAngle(a: number): number {
 export class AI {
   track: Track;
   world: World;
+  #rand: RngStream; // dedicated 'ai' stream (J-5): never Math.random in sim
 
   constructor({ track, world }: { track: Track; world: World }) {
     this.track = track;
     this.world = world;
+    this.#rand = world.rng.stream('ai');
   }
 
   // Basic but convincing racing AI producing an Input-shaped object per frame.
@@ -48,10 +51,10 @@ export class AI {
     const noise = Math.sin(this.world.timeMs / 900 + kart.index * 2.4) * 0.12;
     steer = Math.max(-1, Math.min(1, steer + noise));
 
-    // use item when it pays off
+    // use item when it pays off (deterministic per-stream draw)
     let itemPressed = false;
     if (kart.item) {
-      if (Math.random() < dt * 1.4) {
+      if (this.#rand() < dt * 1.4) {
         if (kart.item === 'banana' && this.#hasOpponentBehind(kart)) itemPressed = true;
         else if (kart.item === 'star') itemPressed = true;
         else if (kart.item === 'mushroom') itemPressed = true;

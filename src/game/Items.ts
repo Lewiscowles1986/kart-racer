@@ -193,9 +193,10 @@ export class Items {
   }
 
   // Roulette a random item with weighted odds (children-friendly, no rare-only).
+  // Deterministic: draws from the seeded 'items' stream (M1 step 5, J-5).
   rollItem(): 'banana' | 'mushroom' | 'star' {
     const total = ITEM.weights.banana + ITEM.weights.mushroom + ITEM.weights.star;
-    let r = Math.random() * total;
+    let r = this.world.rng.stream('items')() * total;
     if ((r -= ITEM.weights.banana) < 0) return 'banana';
     if ((r -= ITEM.weights.mushroom) < 0) return 'mushroom';
     return 'star';
