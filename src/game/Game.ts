@@ -9,6 +9,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { Kart, type World } from './Kart';
 import { Items, type Placements } from './Items';
 import { Effects } from './Effects';
+import { PostStack } from './Post';
 import { AI } from './AI';
 import { HUD } from './HUD';
 import { Input } from './Input';
@@ -60,6 +61,7 @@ export class Game {
   camera!: THREE.PerspectiveCamera;
   scene!: THREE.Scene;
   sunLight!: THREE.DirectionalLight; // M2 J-16: shadow frustum tracks the player
+  post!: PostStack; // M2 J-17: bloom + vignette (null-safe fallback path)
   track!: Track;
   trackGroup!: THREE.Group;
   audio!: Audio;
@@ -160,6 +162,7 @@ export class Game {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.post?.resize(window.innerWidth, window.innerHeight); // M2 J-17
     });
   }
 
@@ -184,6 +187,12 @@ export class Game {
     const rim = new THREE.DirectionalLight(0x9fd8ff, 0.5);
     rim.position.set(-40, 30, -60);
     scene.add(rim);
+
+    // M2 (J-17): subtle bloom on emissive moments + static vignette.
+    // OFF when the user prefers reduced motion (AR-6); the PostStack itself
+    // also falls back silently where WebGL2/SwiftShader can't run it.
+    this.post = new PostStack({ renderer: this.renderer, scene, camera: this.camera, enabled: !this.reduceMotion });
+    this.post.resize(this.renderer.domElement.width, this.renderer.domElement.height);
 
     const sky = new THREE.Mesh(new THREE.SphereGeometry(160, 24, 16), new THREE.MeshBasicMaterial({ map: skyboxTexture(), side: THREE.BackSide }));
     scene.add(sky);
@@ -390,7 +399,9 @@ export class Game {
     this.#updateCamera(dt);
     if (this.state !== 'MENU') this.#updateHud();
 
-    this.renderer.render(this.scene, this.camera);
+    // M2 (J-17): composer when available, plain render as guaranteed fallback
+    if (this.post.composer) this.post.render(dt);
+    else this.renderer.render(this.scene, this.camera);
 
     if (!this.paused && this.audio.enabled) this.audio.engine(Math.abs(this.player.speed) / PHYS.maxSpeed, this.player.boostT > 0 || this.player.starT > 0);
 
