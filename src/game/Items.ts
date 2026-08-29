@@ -3,6 +3,7 @@ import { ITEM_BOX_PLACEMENTS, PHYS, KART_SCALE, BOOST_PADS, JUMPS } from '../con
 import { itemBoxTexture } from '../util/tex';
 import { terrainHeight } from '../track/track';
 import { ItemsSim } from '../sim/itemsSim';
+import { scoreOf } from '../sim/raceSim';
 import type { Placements, SimBanana, SimItemBox } from '../sim/itemsSim';
 import type { Kart, Track, World } from './Kart';
 
@@ -126,6 +127,14 @@ export class Items {
     return this.sim.rollItem(this.world.rng.stream('items'));
   }
 
+  // M4 (J-32): rank-weighted roll for the live roulette — the kart's race
+  // position (scoreOf) biases what it gets. Deterministic across peers.
+  rollItemFor(kart: Kart, kartCount: number): 'banana' | 'mushroom' | 'star' {
+    const ranked = [...this.world.karts].sort((a, b) => scoreOf(b, kartCount) - scoreOf(a, kartCount));
+    const rank = Math.max(1, ranked.findIndex((k) => k === kart) + 1);
+    return this.sim.rollItemForRank(this.world.rng.stream('items'), rank, kartCount);
+  }
+
   use(kart: Kart, id: string) {
     if (id === 'banana') {
       this.#dropBanana(kart);
@@ -162,7 +171,7 @@ export class Items {
 
   // ---- per-frame update: sim step, then mirror visuals ----
   update(dt: number, karts: Kart[]) {
-    this.sim.update(dt, karts, this.world.events, () => this.rollItem());
+    this.sim.update(dt, karts, this.world.events, (k) => this.rollItemFor(k as Kart, karts.length));
     this.#syncVisuals(dt);
   }
 

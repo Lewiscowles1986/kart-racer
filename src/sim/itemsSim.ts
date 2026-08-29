@@ -126,9 +126,26 @@ export class ItemsSim {
     return 'star';
   }
 
+  // M4 (J-32): rank-weighted roulette — leaders get defensive junk, trailers
+  // get comeback power. Pure function of (drand, rank, count): two peers with
+  // the same seed and scoreOf agree bit-for-bit. `rank` is 1-based, count >= 1.
+  rollItemForRank(drand: () => number, rank: number, count: number): 'banana' | 'mushroom' | 'star' {
+    if (count <= 1 || rank < 1) return this.rollItem(drand);
+    // progress 0 (leader) .. 1 (last place); smooth curve, not hard buckets
+    const progress = Math.min(1, Math.max(0, (rank - 1) / (count - 1)));
+    const banana = 0.55 - 0.45 * progress;   // leaders: mostly junk
+    const star = 0.08 + 0.34 * progress;     // trailers: comeback star
+    const mushroom = 1 - banana - star;      // middle-cream
+    let r = drand();
+    if ((r -= banana) < 0) return 'banana';
+    if ((r -= mushroom) < 0) return 'mushroom';
+    return 'star';
+  }
+
   // The single per-tick item step: pad kicks, jump launches, box respawn +
   // pickup, roulette resolution, banana collisions. Event-emitting (J-4).
-  update(dt: number, karts: KartLike[], events: { emit(ev: unknown): void }, roll: () => 'banana' | 'mushroom' | 'star'): void {
+  // `rollFor(kart)` resolves the roulette — the facade weights it by rank.
+  update(dt: number, karts: KartLike[], events: { emit(ev: unknown): void }, rollFor: (k: KartLike) => 'banana' | 'mushroom' | 'star'): void {
     const M = this.#track.samples.length;
     for (const pd of this.pads) {
       for (const k of karts) {
@@ -171,11 +188,12 @@ export class ItemsSim {
       }
     }
 
-    // resolve roulette reveals into real items
+    // resolve roulette reveals into real items. The roll callback receives the
+    // kart so the caller can weight by race rank (M4 J-32).
     for (const k of karts) {
       if (k.rouletteT > 0) {
         k.rouletteT -= dt;
-        if (k.rouletteT <= 0) { k.rouletteT = 0; k.item = roll(); }
+        if (k.rouletteT <= 0) { k.rouletteT = 0; k.item = rollFor(k); }
       }
     }
 
