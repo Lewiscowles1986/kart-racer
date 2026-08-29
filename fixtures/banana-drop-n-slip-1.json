@@ -1,0 +1,170 @@
+{
+  "name": "banana-drop-n-slip-1",
+  "seed": 12648430,
+  "trackId": "sunny",
+  "kartCount": 8,
+  "ticks": 900,
+  "commands": [
+    {
+      "atTick": 0,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 40,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 80,
+      "kart": 0,
+      "input": {
+        "steer": 0.1,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 120,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 180,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 240,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 300,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 360,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 420,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 480,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 540,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 600,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 660,
+      "kart": 0,
+      "input": {
+        "steer": 0.3,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": true,
+        "itemHeld": false
+      }
+    }
+  ],
+  "checkpoints": [
+    {
+      "tick": 0,
+      "hash": "27010052"
+    },
+    {
+      "tick": 300,
+      "hash": "9f1e6e86"
+    },
+    {
+      "tick": 600,
+      "hash": "4df5e03f"
+    },
+    {
+      "tick": 900,
+      "hash": "cec222f5"
+    }
+  ]
+}

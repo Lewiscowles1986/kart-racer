@@ -98,4 +98,20 @@ describe('deterministic fixtures (M1 step 9, J-9)', () => {
     const { checkpoints } = buildFixture();
     expect(onDisk.checkpoints).toEqual(checkpoints);
   });
+
+  // The FULL shelf (J-12, judge note 2): every committed fixture replays
+  // bit-identically. The shelf covers box/item interaction, banana hazards,
+  // off-track respawn recovery, and reverse-lap accounting.
+  it('the whole committed fixture shelf replays bit-identically (>=5 scenarios)', () => {
+    const dir = path.join(process.cwd(), 'fixtures');
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
+    expect(files.length).toBeGreaterThanOrEqual(5);
+    for (const f of files) {
+      const onDisk = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      const observed = runFixture(TRACKS[0].points, WORLD.roadWidth, onDisk, onDisk.trackId);
+      for (const cp of onDisk.checkpoints) {
+        expect(observed[cp.tick], `${f} @tick ${cp.tick}`).toBe(cp.hash);
+      }
+    }
+  });
 });

@@ -1,0 +1,236 @@
+{
+  "name": "reverse-lap-1",
+  "seed": 48879,
+  "trackId": "sunny",
+  "kartCount": 8,
+  "ticks": 900,
+  "commands": [
+    {
+      "atTick": 0,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 30,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 60,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 90,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 120,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 150,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 180,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 210,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 0,
+        "brake": true,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 240,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 300,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 360,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 420,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 480,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 540,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 600,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 660,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 720,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 780,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    },
+    {
+      "atTick": 840,
+      "kart": 0,
+      "input": {
+        "steer": 0,
+        "throttle": 1,
+        "brake": false,
+        "itemPressed": false,
+        "itemHeld": false
+      }
+    }
+  ],
+  "checkpoints": [
+    {
+      "tick": 0,
+      "hash": "27010052"
+    },
+    {
+      "tick": 300,
+      "hash": "6f511f80"
+    },
+    {
+      "tick": 600,
+      "hash": "ccb686a1"
+    },
+    {
+      "tick": 900,
+      "hash": "e52ae37d"
+    }
+  ]
+}
