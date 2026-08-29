@@ -10,6 +10,7 @@ import { Kart, type World } from './Kart';
 import { Items, type Placements } from './Items';
 import { Effects } from './Effects';
 import { PostStack } from './Post';
+import { loadPrefs, savePrefs, motionReduced, type PrefShape, PREF_DEFAULTS } from '../prefs';
 import { AI } from './AI';
 import { HUD } from './HUD';
 import { Input } from './Input';
@@ -62,6 +63,7 @@ export class Game {
   scene!: THREE.Scene;
   sunLight!: THREE.DirectionalLight; // M2 J-16: shadow frustum tracks the player
   post!: PostStack; // M2 J-17: bloom + vignette (null-safe fallback path)
+  prefs: PrefShape = { ...PREF_DEFAULTS }; // M2 J-21: device-local settings
   track!: Track;
   trackGroup!: THREE.Group;
   audio!: Audio;
@@ -97,6 +99,9 @@ export class Game {
     // two loads of the same URL produce the same item/AI stream (J-5/J-9)
     const seedParam = Number(new URLSearchParams(location.search).get('seed'));
     this.rng = new Rng(Number.isFinite(seedParam) && seedParam !== 0 ? seedParam : 0x5eed);
+    // M2 (J-21): device-local preferences (volume/mute/camera/motion); absent
+    // or corrupt storage yields defaults — prefs never block gameplay.
+    this.prefs = loadPrefs(typeof localStorage !== 'undefined' ? localStorage : null);
 
     this.#setupRenderer();
     this.#setupScene();
@@ -107,7 +112,15 @@ export class Game {
     this.#bindGlobal();
     this.raceTimeMs = 0;
     this.paused = false;
-    this.reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.reduceMotion = (() => {
+      try {
+        return motionReduced(this.prefs, !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+      } catch {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      }
+    })();
+    // M2 (J-21): prefs drive camera + audio defaults; camera cycles persist.
+    this.cameraMode = this.prefs.camera < CAMERA_MODES.length ? this.prefs.camera : 0;
   }
 
   #bindGlobal() {
@@ -125,6 +138,9 @@ export class Game {
     this.cameraMode = (this.cameraMode + 1) % CAMERA_MODES.length;
     const m = CAMERA_MODES[this.cameraMode];
     this.hud && this.hud.showCameraMode(m.name);
+    // M2 (J-21): remember the camera choice across sessions
+    this.prefs.camera = this.cameraMode;
+    savePrefs(this.prefs, typeof localStorage !== 'undefined' ? localStorage : null);
     if (this.audio) this.audio.pickup();
   }
 
