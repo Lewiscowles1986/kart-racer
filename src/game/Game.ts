@@ -13,6 +13,7 @@ import { HUD } from './HUD';
 import { Input } from './Input';
 import { Audio } from './Audio';
 import { createKartMesh } from './KartVisual';
+import { createTicker, TICK_MS } from '../sim/loop';
 import type { InputFrame } from './Input';
 
 type GameState = 'MENU' | 'COUNTDOWN' | 'RACING' | 'FINISHED';
@@ -43,6 +44,8 @@ export class Game {
   state: GameState;
   timeMs: number;
   totalLaps: number;
+  // deterministic 120Hz simulation clock (M1 J-3); wall time only enters here
+  simTicker = createTicker({ tickMs: TICK_MS, maxCatchUp: 5, onTick: (dt) => this.#simUpdate(dt) });
 
   renderer!: THREE.WebGLRenderer;
   camera!: THREE.PerspectiveCamera;
@@ -322,6 +325,7 @@ export class Game {
     this.timeMs = 0;
     this.raceTimeMs = 0;
     this.paused = false;
+    this.simTicker.reset();
     this._finalLapShown = 0;
     this.items.reset();
     this.startRace();
@@ -355,13 +359,38 @@ export class Game {
 
   #loop = () => {
     requestAnimationFrame(this.#loop);
-    const dt = Math.min(this.clock.getDelta(), 0.05);
-    this.timeMs += dt * 1000;
+    // SIM: fixed timestep (M1 step 3, J-3). The wall delta only feeds the
+    // accumulator; simulation advances in exact TICK_MS steps. Paused ⇒ the
+    // ticker consumes the frame and simulates nothing (AR-11: timeMs now
+    // freezes while paused — an allowed deviation of the parity contract).
+    const wallDelta = Math.min(this.clock.getDelta(), 0.25);
+    this.simTicker.paused = this.paused;
+    this.simTicker.tick(wallDelta * 1000);
+    const dt = wallDelta; // presentation dt (camera smoothing, effects, audio)
 
-    if (this.paused) {
-      this.renderer.render(this.scene, this.camera);
-      return;
+    // PRESENTATION: once per rAF frame, reading the post-tick sim state.
+    this.effects.update(dt);
+    this.#updateCamera(dt);
+    if (this.state !== 'MENU') this.#updateHud();
+
+    this.renderer.render(this.scene, this.camera);
+
+    if (!this.paused && this.audio.enabled) this.audio.engine(Math.abs(this.player.speed) / PHYS.maxSpeed, this.player.boostT > 0 || this.player.starT > 0);
+
+    // lightweight runtime diagnostic (used by headless QA tooling)
+    const d = document.getElementById('diag');
+    if (d) {
+      const p = this.player;
+      const t = this.track.worldToTrack(p.pos, p.trackHint);
+      d.textContent = JSON.stringify({ state: this.state, lap: p.lap, u: Math.round(p.prevU), lat: Math.round(t.lat), onRoad: p.onRoad, speed: Math.round(p.speed), karts: this.karts.map((k) => Math.round(k.prevU)) });
     }
+  }
+
+  // One fixed-timestep simulation step (120Hz). Everything here must stay
+  // deterministic: only dt-fixed math, ordered array iteration, no DOM.
+  #simUpdate = (dtMs: number) => {
+    const dt = dtMs / 1000;
+    this.timeMs += dtMs;
 
     if (this.state === 'COUNTDOWN') {
       this.countdownAccum += dt;
@@ -372,7 +401,7 @@ export class Game {
       }
       this.#updateKarts(dt, false);
     } else if (this.state === 'RACING') {
-      this.raceTimeMs += dt * 1000;
+      this.raceTimeMs += dtMs;
       this.#updateKarts(dt, true);
       this.#collide();
       this.#respawnCheck(dt);
@@ -385,20 +414,6 @@ export class Game {
     }
 
     this.items.update(dt, this.karts);
-    this.effects.update(dt);
-    this.#updateCamera(dt);
-    if (this.state !== 'MENU') this.#updateHud();
-
-    if (this.audio.enabled) this.audio.engine(Math.abs(this.player.speed) / PHYS.maxSpeed, this.player.boostT > 0 || this.player.starT > 0);
-    this.renderer.render(this.scene, this.camera);
-
-    // lightweight runtime diagnostic (used by headless QA tooling)
-    const d = document.getElementById('diag');
-    if (d) {
-      const p = this.player;
-      const t = this.track.worldToTrack(p.pos, p.trackHint);
-      d.textContent = JSON.stringify({ state: this.state, lap: p.lap, u: Math.round(p.prevU), lat: Math.round(t.lat), onRoad: p.onRoad, speed: Math.round(p.speed), karts: this.karts.map((k) => Math.round(k.prevU)) });
-    }
   }
 
   #respawnCheck(dt: number) {
