@@ -397,6 +397,7 @@ export class Game {
     this.hud.showRaceHud();
     this.#applyPlayerSelection();
     this.#prebuildSelectedTrack(); // reuse track built during the menu, if any
+    this.items.rankBias = this.net ? 1 : 0.5; // SP fairness (playtest): softer comeback curve solo
     const L = this.track.totalLen;
     // Clean 2-column x 4-row starting grid. P1 sits front-left; everyone else
     // pairs up side-by-side and falls back in rows, so every restart lines up in

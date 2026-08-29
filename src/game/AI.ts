@@ -39,12 +39,13 @@ export class AI {
     if (curve > 0.06) throttle = Math.max(0.25, 1 - (curve - 0.06) * 9);
     if (curve > 0.13) throttle = 0.3;
 
-    // mild rubber-banding keeps races exciting without being punishing
+    // rubber-banding keeps races exciting — softened after playtest feedback
+    // ("too hard to win"): the AI pack no longer glues itself to the player
     const player = this.world.karts[0];
     if (!kart.isPlayer && player) {
       const behind = kart.lap < player.lap || (kart.lap === player.lap && kart.dist < player.dist);
-      if (behind) throttle = Math.min(1, throttle * 1.25);
-      else if (kart.lap === player.lap && kart.dist > player.dist + 40) throttle *= 0.8;
+      if (behind) throttle = Math.min(1, throttle * 1.12);
+      else if (kart.lap === player.lap && kart.dist > player.dist + 65) throttle *= 0.92;
     }
 
     // steering wobble so they feel human

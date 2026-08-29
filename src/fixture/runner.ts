@@ -44,6 +44,10 @@ export interface Fixture {
   ticks: number;
   commands: FixtureCommand[];
   checkpoints: { tick: number; hash: string }[];
+  // Item-rank-bias strength for the roulette (0 = neutral weights, 1 =
+  // aggressive comeback curve, 0.5 = SP fairness). Defaults to 1 so legacy
+  // fixtures keep replaying bit-identically.
+  rankBias?: number;
 }
 
 const NEUTRAL: FixtureInput = { steer: 0, throttle: 0, brake: false, itemPressed: false, itemHeld: false };
@@ -114,6 +118,7 @@ export function createHeadlessRace(trackPoints: [number, number][], roadWidth: n
 export function runFixture(trackPoints: [number, number][], roadWidth: number, fixture: Fixture, trackId: string): Record<number, string> {
   if (fixture.trackId !== trackId) throw new Error(`fixture ${fixture.name}: trackId mismatch`);
   const race = createHeadlessRace(trackPoints, roadWidth, fixture.seed, fixture.kartCount);
+  race.items.rankBias = fixture.rankBias ?? 1;
   const commands = [...fixture.commands].sort((a, b) => a.atTick - b.atTick);
   const current: FixtureInput[] = Array.from({ length: fixture.kartCount }, () => ({ ...NEUTRAL }));
   const observed: Record<number, string> = {};

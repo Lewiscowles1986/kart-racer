@@ -127,15 +127,25 @@ export class ItemsSim {
   }
 
   // M4 (J-32): rank-weighted roulette — leaders get defensive junk, trailers
-  // get comeback power. Pure function of (drand, rank, count): two peers with
-  // the same seed and scoreOf agree bit-for-bit. `rank` is 1-based, count >= 1.
-  rollItemForRank(drand: () => number, rank: number, count: number): 'banana' | 'mushroom' | 'star' {
+  // get comeback power. Pure function of (drand, rank, count, strength): two
+  // peers with the same seed and scoreOf agree bit-for-bit. `rank` is 1-based,
+  // count >= 1. `strength` interpolates toward the neutral baseline weights:
+  // 1 = aggressive comeback curve (multiplayer), 0.5 = single-player fair
+  // (leaders keep a ~40% mushroom escape tool, trailers' star maxes lower),
+  // 0 = exactly the neutral ITEM.weights distribution.
+  rollItemForRank(drand: () => number, rank: number, count: number, strength = 1): 'banana' | 'mushroom' | 'star' {
+    const B = ITEM.weights;
+    const tot = B.banana + B.mushroom + B.star;
+    const base = { banana: B.banana / tot, star: B.star / tot };
     if (count <= 1 || rank < 1) return this.rollItem(drand);
     // progress 0 (leader) .. 1 (last place); smooth curve, not hard buckets
     const progress = Math.min(1, Math.max(0, (rank - 1) / (count - 1)));
-    const banana = 0.55 - 0.45 * progress;   // leaders: mostly junk
-    const star = 0.08 + 0.34 * progress;     // trailers: comeback star
-    const mushroom = 1 - banana - star;      // middle-cream
+    const bananaEnd = 0.55 - 0.45 * progress; // leaders: mostly junk
+    const starEnd = 0.08 + 0.34 * progress;   // trailers: comeback star
+    const s = Math.min(1, Math.max(0, strength));
+    const banana = base.banana + (bananaEnd - base.banana) * s;
+    const star = base.star + (starEnd - base.star) * s;
+    const mushroom = 1 - banana - star;       // middle-cream always fills
     let r = drand();
     if ((r -= banana) < 0) return 'banana';
     if ((r -= mushroom) < 0) return 'mushroom';

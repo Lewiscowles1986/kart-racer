@@ -127,12 +127,19 @@ export class Items {
     return this.sim.rollItem(this.world.rng.stream('items'));
   }
 
+  // Rank-bias strength for the SP/MP fairness split (playtest feedback:
+  // aggressive comeback items made SP unwinnable — the player draws junk
+  // while 7 rubber-banded AI draw stars). SP sets 0.5; multiplayer rooms
+  // keep 1. The field must only change at race boundaries (lockstep-safe:
+  // both peers set it in beginNetRace/startRace before the first tick).
+  rankBias = 1;
+
   // M4 (J-32): rank-weighted roll for the live roulette — the kart's race
   // position (scoreOf) biases what it gets. Deterministic across peers.
   rollItemFor(kart: Kart, kartCount: number): 'banana' | 'mushroom' | 'star' {
     const ranked = [...this.world.karts].sort((a, b) => scoreOf(b, kartCount) - scoreOf(a, kartCount));
     const rank = Math.max(1, ranked.findIndex((k) => k === kart) + 1);
-    return this.sim.rollItemForRank(this.world.rng.stream('items'), rank, kartCount);
+    return this.sim.rollItemForRank(this.world.rng.stream('items'), rank, kartCount, this.rankBias);
   }
 
   use(kart: Kart, id: string) {
