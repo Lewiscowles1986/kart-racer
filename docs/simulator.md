@@ -69,24 +69,46 @@ interface RaceState {
 serialisation) are the whole memory API. Snapshots are versioned; readers
 bail on unknown `v`.
 
-## 5. Fixtures
+## 5. Fixtures — IMPLEMENTED (M1 step 9, `0dec72a`)
 
-A **fixture** is a JSON file: `{ seed, trackId, startSnapshot?, commands[] }`.
-It is a full, resumable scenario: tests, playwright demos, and the netcode's
-"state sync on join" all consume the same shape.
+The first fixture format is live and committed: `fixtures/sunny-smoke-600.json`
+(8 karts, 600 ticks, 3 hash checkpoints), replayed bit-identically by
+`tests/fixture.test.js` via `src/fixture/runner.ts`. The format (v1) evolved
+from the sketch below to what the runner actually consumes:
 
 ```jsonc
 {
-  "name": "drift-charge-release-at-tick-400",
-  "seed": 1337, "trackId": "sunny",
-  "commands": [
-    { "kind": "INPUT", "tick": 10,   "seq": 0, "playerId": 0,
-      "frame": { "steer": -1, "throttle": 1, "brake": true, "itemPressed": false, "itemHeld": false } },
-    { "kind": "INPUT", "tick": 400,  "seq": 1, "playerId": 0,
-      "frame": { "steer": -1, "throttle": 1, "brake": false, "itemPressed": false, "itemHeld": false } }
+  "name": "sunny-smoke-600",
+  "seed": 24301,                    // SFC32 root seed (0x5eed default in Game)
+  "trackId": "sunny",
+  "kartCount": 8,
+  "ticks": 600,                     // replay length at 120Hz
+  "commands": [                     // command queue, sticky per kart
+    { "atTick": 0,   "kart": 0,
+      "input": { "steer": 0.6, "throttle": 1, "brake": false, "itemPressed": false, "itemHeld": false } }
+  ],
+  "checkpoints": [                  // stateHash (FNV-1a of a sorted-key snapshot)
+    { "tick": 0, "hash": "8f0a…" }, // bit-identical replay OR the runner throws
+    { "tick": 240, "hash": "e510…" },
+    { "tick": 480, "hash": "…" }
   ]
 }
 ```
+
+Semantics, as implemented:
+- **Command queue**: a command's input becomes the kart's sticky input from
+  `atTick` on, until that kart's next command. Neutral input before the first
+  command. `kart` indexes the v1 start grid (P1 front-left, `L - row*7`, lane ±2).
+- **Controllable time**: `runner.stepTick(inputs)` advances exactly one 120Hz
+  tick (`TICK_MS`); no wall clock, no DOM. The game runs the identical tick body
+  (`Game.#simUpdate`).
+- **Race identity**: `stateHash` over `snapshotRace()` — plain sorted-key docs,
+  floats on the 1e-4 grid (`src/sim/state.ts`). A 1cm position nudge flips the
+  hash (desync detector for M3 lockstep, verified by test).
+- **Snapshots**: `hashSnapshot(apply) — applyKartSnapshot/snapshotRace` support
+  `restore` semantics; `startSnapshot?` remains the planned extension.
+- **Scenario fixtures** for playwright demos (`?fixture=<name>&shot=at:400`)
+  remain SPEC'd but not yet built — first M3/M4 nicety, not a blocker.
 
 **Playback = restore + replay + assert.** Visual demos pick a fixture, play it
 in a real browser and screenshot at labelled moments
