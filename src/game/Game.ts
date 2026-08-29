@@ -59,6 +59,7 @@ export class Game {
   renderer!: THREE.WebGLRenderer;
   camera!: THREE.PerspectiveCamera;
   scene!: THREE.Scene;
+  sunLight!: THREE.DirectionalLight; // M2 J-16: shadow frustum tracks the player
   track!: Track;
   trackGroup!: THREE.Group;
   audio!: Audio;
@@ -168,16 +169,17 @@ export class Game {
     scene.fog = new THREE.FogExp2(0x9ec6ec, 0.0021);
 
     scene.add(new THREE.HemisphereLight(0xdff1ff, 0x9fc28a, 0.5));
-    const sun = new THREE.DirectionalLight(0xffe8c8, 2.6);
-    sun.position.set(60, 90, 30);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-    sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
-    sun.shadow.camera.far = 200;
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.02;
-    scene.add(sun);
+    this.sunLight = new THREE.DirectionalLight(0xffe8c8, 2.6);
+    this.sunLight.position.set(60, 90, 30);
+    this.sunLight.castShadow = true;
+    this.sunLight.shadow.mapSize.set(2048, 2048);
+    this.sunLight.shadow.camera.left = -60; this.sunLight.shadow.camera.right = 60;
+    this.sunLight.shadow.camera.top = 60; this.sunLight.shadow.camera.bottom = -60;
+    this.sunLight.shadow.camera.far = 200;
+    this.sunLight.shadow.bias = -0.0004;
+    this.sunLight.shadow.normalBias = 0.02;
+    scene.add(this.sunLight);
+    scene.add(this.sunLight.target); // M2 (J-16): target tracks the player
     // cool rim/backlight for depth
     const rim = new THREE.DirectionalLight(0x9fd8ff, 0.5);
     rim.position.set(-40, 30, -60);
@@ -549,6 +551,15 @@ export class Game {
     const fov = m.fov + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, 5 * dt);
     this.camera.updateProjectionMatrix();
+
+    // M2 (J-16): shadow frustum follows the player — the 2048² map stays crisp
+    // around the kart instead of covering the whole ~400-unit track.
+    const p2 = this.player;
+    if (this.sunLight && p2) {
+      this.sunLight.target.position.set(p2.pos.x, 0, p2.pos.z);
+      this.sunLight.position.set(p2.pos.x + 60, 90, p2.pos.z + 30);
+      this.sunLight.target.updateMatrixWorld();
+    }
   }
 }
 
