@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD, ITEM_BOX_PLACEMENTS, BOOST_PADS, JUMPS, type TrackDef } from '../config';
 import { upsertCustomLevel } from './catalog';
+import { collideKarts, respawnCheck, fabricatePodium, scoreOf } from '../sim/raceSim';
 import { RacerPreview } from './RacerPreview';
 import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
@@ -430,17 +431,10 @@ export class Game {
     this.items.update(dt, this.karts);
   }
 
+  // Sim machines delegated to src/sim/raceSim.ts (M1 step 8) — Game only
+  // supplies the frame inputs and presentation.
   #respawnCheck(dt: number) {
-    const limit = RACE.respawnTimeoutMs / 1000;
-    const offroad = this.track.halfWidth + 12;
-    for (const k of this.karts) {
-      if (k.finished) continue;
-      const t = this.track.worldToTrack(k.pos, k.trackHint);
-      k.trackHint = t.index;
-      if (Math.abs(t.lat) > offroad) k.respawnT += dt;
-      else k.respawnT = 0;
-      if (k.respawnT > limit) k.respawn();
-    }
+    respawnCheck(this.karts, this.track, dt, RACE.respawnTimeoutMs, 12);
   }
 
   #finalLapCallout() {
@@ -471,26 +465,7 @@ export class Game {
   }
 
   #collide() {
-    const ks = this.karts;
-    for (let i = 0; i < ks.length; i++) {
-      for (let j = i + 1; j < ks.length; j++) {
-        const a = ks[i], b = ks[j];
-        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
-        const d = Math.hypot(dx, dz);
-        const min = (a.radius + b.radius) * 0.85;
-        if (d < min && d > 0.001) {
-          const push = (min - d) * 0.5;
-          const nx = dx / d, nz = dz / d;
-          a.pos.x -= nx * push; a.pos.z -= nz * push;
-          b.pos.x += nx * push; b.pos.z += nz * push;
-          const rel = (a.speed - b.speed) * 0.3;
-          a.speed -= rel; b.speed += rel;
-          // star plow: a shielded kart knocks the other one over
-          if (a.shieldT > 0 && !b.shieldT) b.hitPlow({ x: nx, z: nz });
-          else if (b.shieldT > 0 && !a.shieldT) a.hitPlow({ x: -nx, z: -nz });
-        }
-      }
-    }
+    collideKarts(this.karts);
   }
 
   #checkFinish() {
@@ -511,18 +486,15 @@ export class Game {
     if (this.state !== 'RACING' || !this.player || !this.player.finished) return;
     this.finishWait = (this.finishWait || 0) + dt;
     if (this.finishWait > 6) {
-      const base = this.player.finishTime!;
-      let i = 1;
-      for (const k of this.karts) {
-        if (!k.finished) { k.finished = true; k.finishTime = base + i * 0.6; k.speed = 0; i++; }
-      }
+      // GP-7 FIX: stragglers ranked by race score, not array order.
+      fabricatePodium(this.karts, RACE.kartCount, this.player.finishTime!);
       this.#doFinish();
     }
   }
 
   #updateHud() {
     if (!this.player) return;
-    const ranked = [...this.karts].sort((a, b) => score(b) - score(a));
+    const ranked = [...this.karts].sort((a, b) => scoreOf(b, RACE.kartCount) - scoreOf(a, RACE.kartCount));
     const position = ranked.indexOf(this.player) + 1;
     this.hud.update({
       position,
@@ -578,11 +550,6 @@ export class Game {
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, 5 * dt);
     this.camera.updateProjectionMatrix();
   }
-}
-
-function score(k: Kart): number {
-  if (k.finished) return (RACE.kartCount + 1) * 1e9 + (1e9 - k.finishTime!);
-  return k.lap * 1e9 + k.dist;
 }
 
 // Resolve a track's object placements, falling back to the shared defaults for

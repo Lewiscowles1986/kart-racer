@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PHYS, TERRAIN, KART_SCALE, PAD, JUMP } from '../config';
+import { GHOST_MS } from '../sim/raceSim';
 import { terrainHeight, terrainNormal } from '../track/track';
 import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
@@ -75,6 +76,7 @@ export class Kart {
   finishTime: number | null;
   raceTime: number;
   respawnT: number;
+  ghostT: number;        // GP-9: post-respawn collision grace (2s)
   rouletteT: number;     // item-box reveal countdown before the item locks in
 
   visual: KartVisual;
@@ -117,6 +119,7 @@ export class Kart {
     this.finishTime = null;
     this.raceTime = 0;
     this.respawnT = 0;
+    this.ghostT = 0;        // GP-9: post-respawn collision grace
     this.rouletteT = 0;     // item-box reveal countdown before the item locks in
 
     this.visual = visual;
@@ -151,6 +154,7 @@ export class Kart {
     this.speed = 0;
     this.spinning = 0;
     this.respawnT = 0;
+    this.ghostT = GHOST_MS / 1000; // GP-9: 2s ghost — pass through, don't re-stick
     this.world.events.emit({ t: 'ring', at: { x: this.pos.x, y: this.pos.y + 0.6 * KART_SCALE, z: this.pos.z }, rgb: [0.45, 0.85, 1], max: 2.2 });
   }
 
@@ -225,6 +229,7 @@ export class Kart {
     if (this.shieldT > 0) this.shieldT -= dt;
     if (this.starT > 0) this.starT -= dt;
     if (this.padT > 0) this.padT -= dt;
+    if (this.ghostT > 0) this.ghostT = Math.max(0, this.ghostT - dt); // GP-9
 
     let steer = input.steer;
     const throttle = input.throttle;
