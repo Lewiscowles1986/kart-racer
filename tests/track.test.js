@@ -69,12 +69,20 @@ describe('track props (regression: trees must never sit on the road)', () => {
   it('no tree is placed on or near the road surface', () => {
     const { scene } = makeTrack();
 
-    // collect trees = groups whose direct child is a sphere (crown). The track
-    // root group now wraps everything, so we only match the per-tree groups.
+    // collect trees from the crown InstancedMesh: one instance per tree, whose
+    // translation carries the tree centre (same origin the per-tree groups had).
     const trees = [];
     scene.traverse((o) => {
-      if (o.isGroup && o.children.some((c) => c.isMesh && c.geometry.type === 'SphereGeometry')) {
-        trees.push(o);
+      if (o.isInstancedMesh && o.geometry.type === 'SphereGeometry') {
+        const mtx = new THREE.Matrix4();
+        const pos = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const scl = new THREE.Vector3();
+        for (let i = 0; i < o.count; i++) {
+          o.getMatrixAt(i, mtx);
+          mtx.decompose(pos, quat, scl);
+          trees.push({ position: { x: pos.x, y: pos.y, z: pos.z } });
+        }
       }
     });
     expect(trees.length).toBeGreaterThan(0);

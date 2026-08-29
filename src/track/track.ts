@@ -101,6 +101,12 @@ export function buildScene(scene: THREE.Scene, track: Track, opts?: { trees?: [n
 
   addProps(group, track, opts?.trees);
   scene.add(group);
+  // cheap draw-call diagnostic: only logs when ?drawdebug is in the URL
+  if (typeof window !== 'undefined' && window.location.search.includes('drawdebug')) {
+    let meshCount = 0;
+    scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshCount++; });
+    console.log('[scene] meshes:', meshCount);
+  }
   return group;
 }
 
@@ -109,26 +115,66 @@ export function buildScene(scene: THREE.Scene, track: Track, opts?: { trees?: [n
 // generated (kept clear of the road and non-overlapping).
 function addProps(group: THREE.Group, track: Track, treePositions?: [number, number, number][]) {
   const { samples, halfWidth } = track;
-  // white picket-style barrier on the outside shoulder, following the loop
+  // white picket-style barrier on the outside shoulder, following the loop.
+  // All posts share one geometry+material, so they are drawn as ONE InstancedMesh
+  // instead of hundreds of separate meshes (AR-12 draw-call compression).
   const barrierMat = new THREE.MeshStandardMaterial({ color: 0xf4ead8, roughness: 0.6, metalness: 0 });
   const outer = halfWidth + 2.6;
   const M = samples.length;
-  // post positions every ~3.2m
+  // post positions every ~3.2m (same spacing the per-post meshes used)
+  const postMatrices: THREE.Matrix4[] = [];
   for (let i = 0; i < M; i += 4) {
     const p = samples[i];
     const px = p.x + p.nx * outer, pz = p.z + p.nz * outer;
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 6), barrierMat);
-    post.position.set(px, terrainHeight(px, pz) + 0.45, pz);
-    post.castShadow = true;
-    group.add(post);
+    postMatrices.push(new THREE.Matrix4().makeTranslation(px, terrainHeight(px, pz) + 0.45, pz));
   }
+  const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.14, 0.9, 6), barrierMat, postMatrices.length);
+  for (let k = 0; k < postMatrices.length; k++) posts.setMatrixAt(k, postMatrices[k]);
+  posts.instanceMatrix.needsUpdate = true;
+  posts.castShadow = true;
+  group.add(posts);
 
   const trees = treePositions ?? genTreePositions(samples, halfWidth);
-  for (const [x, z, r] of trees) group.add(buildTree(x, z, r));
+  addTreesInstanced(group, trees);
   addStartBanner(group, track);
 }
 
+// Draw every tree as exactly two InstancedMeshes (trunks + crowns) instead of a
+// trunk+crown mesh pair per tree (AR-12). Geometry is the unit-radius shape;
+// each instance matrix applies the per-tree radius so the drawn result matches
+// buildTree exactly: same positions, dimensions and material colors.
+function addTreesInstanced(group: THREE.Group, trees: [number, number, number][]) {
+  if (trees.length === 0) return;
+  const trunks = new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.22, 0.32, 1.4, 6),
+    new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.9, metalness: 0 }),
+    trees.length
+  );
+  const crowns = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(1, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3f9d3c, roughness: 0.85, metalness: 0 }),
+    trees.length
+  );
+  const m = new THREE.Matrix4();
+  const v = new THREE.Vector3();
+  for (let k = 0; k < trees.length; k++) {
+    const [x, z, r] = trees[k];
+    const y = terrainHeight(x, z);
+    // trunk: cylinder centred at r*0.7, uniformly scaled by r
+    trunks.setMatrixAt(k, m.identity().makeTranslation(x, y + r * 0.7, z).scale(v.set(r, r, r)));
+    // crown: sphere at r*2.0, scaled by r with the same 1.15 vertical squash
+    crowns.setMatrixAt(k, m.identity().makeTranslation(x, y + r * 2.0, z).scale(v.set(r, r * 1.15, r)));
+  }
+  trunks.instanceMatrix.needsUpdate = true;
+  crowns.instanceMatrix.needsUpdate = true;
+  trunks.castShadow = true;
+  crowns.castShadow = true;
+  group.add(trunks, crowns);
+}
+
 // Build a single tree (trunk + foliage) centred at (x, z) on the terrain.
+// Used by the editor for object previews; the racing scene draws trees through
+// the instanced path in addTreesInstanced instead (AR-12 draw-call compression).
 export function buildTree(x: number, z: number, r: number): THREE.Group {
   const trunks = new THREE.MeshStandardMaterial({ color: 0x7a4a24, roughness: 0.9, metalness: 0 });
   const foliage = new THREE.MeshStandardMaterial({ color: 0x3f9d3c, roughness: 0.85, metalness: 0 });
