@@ -1,10 +1,12 @@
 // Visual QA: capture screenshots of the game at several moments.
 // Usage: node scripts/vqa.mjs [mode]   mode: menu | race | full
 //   menu = 1 shot of menu, race = 4 shots during auto-race, full = race + menu.
+// Base URL overridable: KART_URL=http://127.0.0.1:5174 (default: this worktree's
+// managed dev server; NOTE 5173 may be a stray server for another checkout).
 import { chromium } from 'playwright-core';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const BASE = 'http://127.0.0.1:5173';
+const BASE = process.env.KART_URL || 'http://127.0.0.1:5174';
 const mode = process.argv[2] || 'full';
 const outDir = new URL('./shots/', import.meta.url).pathname;
 
