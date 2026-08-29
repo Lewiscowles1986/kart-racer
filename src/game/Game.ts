@@ -270,12 +270,20 @@ export class Game {
     this.#eventBridge = new EventBridge(this.effects, this.audio);
     this.items = new Items({ scene: this.scene, track: this.track, world: this });
     this.ai = new AI({ track: this.track, world: this });
+    // QA affordance (M2): `?debug` exposes the game for headless inspection
+    // (vqa/tests count scene objects; never used by gameplay code).
+    if (new URLSearchParams(window.location.search).has('debug')) {
+      (window as any).__kk = this;
+    }
     this.hud = new HUD(this.app);
 
     this.karts = [];
     for (let i = 0; i < RACE.kartCount; i++) {
       const style = DRIVER_STYLES[i];
       const visual = createKartMesh(style);
+      // M2 (J-18): camera-facing name plate above every kart — the identity
+      // cue multiplayer needs; player kart gets no plate (you know who you are).
+      if (i !== 0) visual.root.add(this.#makeNamePlate(style.name, style.body));
       this.scene.add(visual.root);
       const kart = new Kart({ index: i, name: style.name, color: style.body, accent: style.accent, track: this.track, world: this, visual });
       this.karts.push(kart);
@@ -571,6 +579,30 @@ export class Game {
       this.sunLight.position.set(p2.pos.x + 60, 90, p2.pos.z + 30);
       this.sunLight.target.updateMatrixWorld();
     }
+  }
+  #makeNamePlate(name: string, color: number): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const g = c.getContext('2d')!;
+    g.font = '700 34px ui-rounded, system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const w = Math.min(232, g.measureText(name).width + 28);
+    g.fillStyle = 'rgba(10,14,24,0.62)';
+    g.beginPath();
+    g.roundRect(128 - w / 2, 8, w, 46, 14);
+    g.fill();
+    g.strokeStyle = '#' + color.toString(16).padStart(6, '0');
+    g.lineWidth = 4;
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.fillText(name, 128, 32);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    s.position.set(0, 2.7, 0); // floats above the kart, root-yaws never tilt it
+    s.scale.set(2.6, 0.65, 1);
+    return s;
   }
 }
 
