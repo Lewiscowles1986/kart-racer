@@ -14,6 +14,8 @@ import { Input } from './Input';
 import { Audio } from './Audio';
 import { createKartMesh } from './KartVisual';
 import { createTicker, TICK_MS } from '../sim/loop';
+import { SimEventQueue } from '../sim/events';
+import { EventBridge } from './EventBridge';
 import type { InputFrame } from './Input';
 
 type GameState = 'MENU' | 'COUNTDOWN' | 'RACING' | 'FINISHED';
@@ -46,6 +48,9 @@ export class Game {
   totalLaps: number;
   // deterministic 120Hz simulation clock (M1 J-3); wall time only enters here
   simTicker = createTicker({ tickMs: TICK_MS, maxCatchUp: 5, onTick: (dt) => this.#simUpdate(dt) });
+  // sim-visible event bus (M1 J-4): the ONLY side-channel sim code may use
+  events = new SimEventQueue();
+  #eventBridge!: EventBridge;
 
   renderer!: THREE.WebGLRenderer;
   camera!: THREE.PerspectiveCamera;
@@ -243,6 +248,7 @@ export class Game {
     this.audio.warmup(); // create the AudioContext during load, not on Start click
     this.input = new Input();
     this.effects = new Effects(this.scene, 2000);
+    this.#eventBridge = new EventBridge(this.effects, this.audio);
     this.items = new Items({ scene: this.scene, track: this.track, world: this });
     this.ai = new AI({ track: this.track, world: this });
     this.hud = new HUD(this.app);
@@ -366,6 +372,7 @@ export class Game {
     const wallDelta = Math.min(this.clock.getDelta(), 0.25);
     this.simTicker.paused = this.paused;
     this.simTicker.tick(wallDelta * 1000);
+    this.#eventBridge.pump(this.events); // sim events -> particles/sonics
     const dt = wallDelta; // presentation dt (camera smoothing, effects, audio)
 
     // PRESENTATION: once per rAF frame, reading the post-tick sim state.

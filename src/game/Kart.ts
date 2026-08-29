@@ -4,8 +4,7 @@ import { terrainHeight, terrainNormal } from '../track/track';
 import type { Sample, TrackResult } from '../track/track';
 import type { KartVisual } from './KartVisual';
 import type { InputFrame } from './Input';
-import type { Effects } from './Effects';
-import type { Audio } from './Audio';
+import type { SimEventQueue } from '../sim/events';
 import type { Items } from './Items';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -24,8 +23,7 @@ export interface World {
   karts: Kart[];
   timeMs: number;
   totalLaps: number;
-  effects: Effects;
-  audio: Audio;
+  events: SimEventQueue;
   items: Items;
 }
 
@@ -152,7 +150,7 @@ export class Kart {
     this.speed = 0;
     this.spinning = 0;
     this.respawnT = 0;
-    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.6 * KART_SCALE), new THREE.Color(0.45, 0.85, 1), 2.2);
+    this.world.events.emit({ t: 'ring', at: { x: this.pos.x, y: this.pos.y + 0.6 * KART_SCALE, z: this.pos.z }, rgb: [0.45, 0.85, 1], max: 2.2 });
   }
 
   useItem() {
@@ -166,8 +164,8 @@ export class Kart {
     if (this.shieldT > 0 || this.spinning > 0) return false;
     this.spinning = PHYS.bananaSpinMs / 1000;
     this.speed *= 0.62;
-    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4 * KART_SCALE), 12);
-    this.world.audio.slip();
+    this.world.events.emit({ t: 'spinStars', at: { x: this.pos.x, y: this.pos.y + 0.4 * KART_SCALE, z: this.pos.z }, count: 12 });
+    this.world.events.emit({ t: 'sfx', name: 'slip' });
     return true;
   }
 
@@ -177,14 +175,14 @@ export class Kart {
     this.spinning = Math.max(this.spinning, 0.65);
     this.speed *= 0.35;
     this.pos.addScaledVector(shoveDir, 2.2 * KART_SCALE);
-    this.world.effects.spinStars(this.pos.clone().setY(this.pos.y + 0.4 * KART_SCALE), 8);
-    this.world.audio.hit();
+    this.world.events.emit({ t: 'spinStars', at: { x: this.pos.x, y: this.pos.y + 0.4 * KART_SCALE, z: this.pos.z }, count: 8 });
+    this.world.events.emit({ t: 'sfx', name: 'hit' });
   }
 
   #miniTurbo() {
     this.boostT = 1.3;
-    this.world.audio.boost();
-    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.5 * KART_SCALE), new THREE.Color(1, 0.4, 0.2), 2.2);
+    this.world.events.emit({ t: 'sfx', name: 'boost' });
+    this.world.events.emit({ t: 'ring', at: { x: this.pos.x, y: this.pos.y + 0.5 * KART_SCALE, z: this.pos.z }, rgb: [1, 0.4, 0.2], max: 2.2 });
     this.driftT = 0;
     this.drifting = false;
   }
@@ -201,8 +199,8 @@ export class Kart {
     this.airborne = true;
     this.vy = JUMP.vy;
     this.airT = 0;
-    this.world.audio.jump();
-    this.world.effects.ring(this.pos.clone().setY(this.pos.y + 0.5), new THREE.Color(0xffd23f), 1.8);
+    this.world.events.emit({ t: 'sfx', name: 'jump' });
+    this.world.events.emit({ t: 'ring', at: { x: this.pos.x, y: this.pos.y + 0.5, z: this.pos.z }, rgb: [1, 0xd2 / 255, 0x3f / 255], max: 1.8 });
   }
 
   update(dt: number, input: InputFrame) {
@@ -289,8 +287,8 @@ export class Kart {
       if (this.pos.y <= groundY && this.vy <= 0) {
         this.pos.y = groundY;
         this.airborne = false; this.vy = 0; this.airT = 0;
-        this.world.audio.land();
-        this.world.effects.dust(this.pos.clone(), new THREE.Color(0.85, 0.8, 0.7), 8);
+        this.world.events.emit({ t: 'sfx', name: 'land' });
+        this.world.events.emit({ t: 'dust', at: { x: this.pos.x, y: this.pos.y, z: this.pos.z }, rgb: [0.85, 0.8, 0.7], count: 8 });
       }
     }
 
@@ -325,7 +323,7 @@ export class Kart {
           this.finished = true;
           this.finishTime = this.raceTime;
         } else {
-          this.world.audio.lap();
+          this.world.events.emit({ t: 'sfx', name: 'lap' });
         }
       }
     }
@@ -371,11 +369,10 @@ export class Kart {
     for (const w of v.wheels) w.rotation.x -= rot;
     for (const w of v.wheels) if (w.userData.front) w.rotation.y = steer * 0.5;
     if (boosting) {
-      const dir = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-      this.world.effects.boost(this.pos.clone().setY(this.pos.y + 0.5), dir, new THREE.Color(1, 0.6, 0.2), 4);
+      this.world.events.emit({ t: 'boostTrail', at: { x: this.pos.x, y: this.pos.y + 0.5, z: this.pos.z }, dir: { x: Math.sin(this.yaw), y: 0, z: Math.cos(this.yaw) }, rgb: [1, 0.6, 0.2], count: 4 });
     }
     if (this.drifting) {
-      this.world.effects.dust(this.pos.clone().setY(this.pos.y + 0.2), undefined, 2);
+      this.world.events.emit({ t: 'dust', at: { x: this.pos.x, y: this.pos.y + 0.2, z: this.pos.z }, count: 2 });
     }
     if (this.shieldT > 0) v.setShield(true, this.raceTime); else v.setShield(false, 0);
   }

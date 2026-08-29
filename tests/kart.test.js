@@ -9,20 +9,22 @@ vi.mock('../src/util/tex', () => ({
 import { buildScene, Track } from '../src/track/track';
 import { TRACKS, WORLD } from '../src/config';
 import { Kart } from '../src/game/Kart';
+import { SimEventQueue } from '../src/sim/events';
 
 function makeKart() {
   const scene = new THREE.Scene();
   const track = new Track(TRACKS[0].points, WORLD.roadWidth);
   buildScene(scene, track);
   const world = {
-    effects: { boost() {}, dust() {}, spinStars() {}, ring() {} },
-    audio: { lap() {}, slip() {}, hit() {}, boost() {} },
+    events: new SimEventQueue(), // J-4: sim emits events; presentation pumps them
     items: { use() {} },
     karts: [],
+    timeMs: 0,
+    totalLaps: 3,
   };
   const visual = { root: new THREE.Group(), wheels: [], driver: new THREE.Group(), setShield() {} };
   const kart = new Kart({ index: 0, name: 'You', color: 0xff0000, accent: 0xffffff, track, world, visual });
-  return { kart, samples: track.samples };
+  return { kart, world, samples: track.samples };
 }
 
 const input = (steer) => ({ steer, throttle: 1, brake: false, itemPressed: false, itemHeld: false });
@@ -59,13 +61,16 @@ describe('Kart physics', () => {
     expect(kart.speed).toBeLessThanOrEqual(50);
   });
 
-  it('a banana hit spins the kart and slows it', () => {
-    const { kart } = makeKart();
+  it('a banana hit spins the kart, slows it, and emits spin+sfx events (J-4 contract)', () => {
+    const { kart, world } = makeKart();
     kart.speed = 20;
     const ok = kart.hitBanana();
     expect(ok).toBe(true);
     expect(kart.spinning).toBeGreaterThan(0);
     expect(kart.speed).toBeLessThan(20);
+    const evs = world.events.drain();
+    expect(evs.map((e) => e.t)).toEqual(['spinStars', 'sfx']);
+    expect(evs[1].name).toBe('slip');
   });
 
   it('a shielded kart is immune to banana hits', () => {

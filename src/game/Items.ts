@@ -206,13 +206,13 @@ export class Items {
       this.dropBanana(kart);
     } else if (id === 'mushroom') {
       kart.boostT = PHYS.boost.mushroom.time / 1000;
-      this.world.audio.boost();
-      this.world.effects.ring(kart.pos.clone().setY(kart.pos.y + 0.6), new THREE.Color(1, 0.8, 0.2), 2.4);
+      this.world.events.emit({ t: 'sfx', name: 'boost' });
+      this.world.events.emit({ t: 'ring', at: { x: kart.pos.x, y: kart.pos.y + 0.6, z: kart.pos.z }, rgb: [1, 0.8, 0.2], max: 2.4 });
     } else if (id === 'star') {
       kart.starT = PHYS.boost.star.time / 1000;
       kart.shieldT = kart.starT;
-      this.world.audio.star();
-      this.world.effects.ring(kart.pos.clone().setY(kart.pos.y + 0.6 * KART_SCALE), new THREE.Color(1, 0.9, 0.2), 3.2);
+      this.world.events.emit({ t: 'sfx', name: 'star' });
+      this.world.events.emit({ t: 'ring', at: { x: kart.pos.x, y: kart.pos.y + 0.6 * KART_SCALE, z: kart.pos.z }, rgb: [1, 0.9, 0.2], max: 3.2 });
     }
   }
 
@@ -283,8 +283,8 @@ export class Items {
           // top speed / from the road centre, not just on a perfect line
           if (dx * dx + dz * dz < 1.8 * 1.8) {
             k.rouletteT = ITEM.rouletteMs / 1000;
-            this.world.audio.pickup();
-            this.world.effects.ring(k.pos.clone().setY(k.pos.y + 0.6 * KART_SCALE), new THREE.Color(1, 0.9, 0.3), 1.6);
+            this.world.events.emit({ t: 'sfx', name: 'pickup' });
+            this.world.events.emit({ t: 'ring', at: { x: k.pos.x, y: k.pos.y + 0.6 * KART_SCALE, z: k.pos.z }, rgb: [1, 0.9, 0.3], max: 1.6 });
             b.taken = true; b.respawn = ITEM.boxRespawnMs / 1000; b.mesh.visible = false;
             break;
           }
