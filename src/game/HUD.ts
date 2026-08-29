@@ -20,6 +20,7 @@ interface HudUpdate {
   item: string | null;
   rouletteT?: number;
   muted?: boolean;
+  standings?: { name: string; isPlayer: boolean }[]; // live P1..P8 (M2 J-19)
 }
 
 interface Result {
@@ -45,6 +46,7 @@ export class HUD {
   controls!: HTMLElement;
   muteBtn!: HTMLElement;
   _cycleAccum = 0;
+  _ranksKey = '';
   _cycleIcon = '';
   kartDots: KartDot[] = [];
   playerPos: THREE.Vector3 | undefined;
@@ -81,6 +83,7 @@ export class HUD {
         <div class="pos-badge"><span class="pos"></span></div>
         <div class="timer"></div>
         <div class="lap"></div>
+        <div class="ranks"></div>
         <div class="cam-chip">Cam: <span class="cam-name">Chase</span></div>
         <div class="hud-buttons">
           <button class="hudbtn mute">🔊</button>
@@ -149,6 +152,10 @@ export class HUD {
       .timer{background:rgba(20,26,46,.72);color:#ffe08a;border-radius:12px;padding:8px 18px;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
       .lap{background:rgba(20,26,46,.72);color:#fff;border-radius:12px;padding:8px 14px;font-size:20px;font-weight:700}
       .hud-buttons{margin-left:auto;display:flex;gap:8px}
+      .ranks{display:flex;flex-direction:column;gap:2px;margin-left:auto;padding:6px 10px;border-radius:12px;background:rgba(20,26,46,.55);font-size:12px;font-weight:700;min-width:86px}
+      .ranks .row{display:flex;justify-content:space-between;gap:8px;color:#cbd5e1;line-height:1.35}
+      .ranks .row.me{color:#ffe08a;text-shadow:0 0 6px rgba(255,200,60,.35)}
+      .ranks .row .pp{font-variant-numeric:tabular-nums;}
       .hudbtn{width:46px;height:46px;border-radius:12px;border:0;background:rgba(20,26,46,.72);color:#fff;font-size:22px;cursor:pointer;backdrop-filter:blur(4px)}
       .hudbtn:hover{background:rgba(40,52,88,.85)}
       .hudbtn.muted{opacity:.5}
@@ -314,12 +321,25 @@ export class HUD {
     if (n) n.textContent = name;
   }
 
-  update({ position, lap, timeMs, item, rouletteT = 0, muted = false }: HudUpdate) {
+  update({ position, lap, timeMs, item, rouletteT = 0, muted = false, standings }: HudUpdate) {
     this.posEl.textContent = POS[position - 1] || `${position}th`;
     this.lapEl.textContent = `Lap ${Math.min(lap, 3)}/3`;
     const s = Math.floor(timeMs / 1000);
     const cs = Math.floor((timeMs % 1000) / 10);
     this.timerEl.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+    // M2 (J-19): live rank ladder, rebuilt only when the order changes
+    if (standings) {
+      const key = standings.map((r) => r.name).join('|');
+      if (key !== this._ranksKey) {
+        this._ranksKey = key;
+        const ranksEl = this.el.querySelector('.ranks') as HTMLElement;
+        if (ranksEl) {
+          ranksEl.innerHTML = standings
+            .map((st, i) => `<div class="row${st.isPlayer ? ' me' : ''}"><span class="pp">${i + 1}.</span><span>${st.name}</span></div>`)
+            .join('');
+        }
+      }
+    }
     // item box: cycling roulette while revealing, else the held item
     if (rouletteT > 0) {
       this._cycleAccum += 16;

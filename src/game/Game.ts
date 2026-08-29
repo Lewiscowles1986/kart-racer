@@ -540,6 +540,7 @@ export class Game {
       item: this.player.item,
       rouletteT: this.player.rouletteT,
       muted: this.audio.muted,
+      standings: ranked.map((k) => ({ name: k.name, isPlayer: k.isPlayer })),
     });
     this.hud.setPlayerPos(this.player.pos);
     this.hud.setKartDots(this.karts.map((k) => ({ x: k.pos.x, z: k.pos.z, color: '#' + k.color.toString(16).padStart(6, '0'), isPlayer: k.isPlayer })));
