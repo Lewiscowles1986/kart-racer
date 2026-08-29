@@ -134,7 +134,9 @@ export function dirtTexture(seed = 21, size = 256): THREE.CanvasTexture {
   return canvasTexture(c, 4, 4);
 }
 
-// Red-and-white checker kerb.
+// Red-and-white checker kerb. M2 (J-14): 8x1 repeat turned ribbon UVs into
+// dense barber-stripes; 1x2 gives one readable checker band across the width,
+// two squares of travel along the kerb.
 export function curbTexture(size = 64): THREE.CanvasTexture {
   const c = makeCanvas(size);
   const g = c.getContext('2d')!;
@@ -145,7 +147,7 @@ export function curbTexture(size = 64): THREE.CanvasTexture {
       g.fillRect(x * sq, y * sq, sq, sq);
     }
   }
-  return canvasTexture(c, 8, 1);
+  return canvasTexture(c, 1, 2);
 }
 
 export function sandTexture(seed = 33, size = 256): THREE.CanvasTexture {
@@ -164,7 +166,7 @@ export function sandTexture(seed = 33, size = 256): THREE.CanvasTexture {
   return canvasTexture(c, 5, 5);
 }
 
-export function skyboxTexture(seed = 5, size = 512): THREE.CanvasTexture {
+export function skyboxTexture(seed = 5, size = 1024): THREE.CanvasTexture {
   const c = makeCanvas(size);
   const g = c.getContext('2d')!;
   const rnd = mulberry32(seed);
@@ -175,10 +177,11 @@ export function skyboxTexture(seed = 5, size = 512): THREE.CanvasTexture {
   grad.addColorStop(1, '#eef6ff');
   g.fillStyle = grad;
   g.fillRect(0, 0, size, size);
-  // soft cartoon clouds
-  for (let i = 0; i < 14; i++) {
-    const cx = rnd() * size, cy = rnd() * size * 0.62 + size * 0.06;
-    const r = 22 + rnd() * 42;
+  // M2 (J-15): clouds band-limited to the playable latitude; a pole-stretched
+  // cloud column near the zenith was smearing the whole sky (VS-3).
+  for (let i = 0; i < 16; i++) {
+    const cx = rnd() * size, cy = size * 0.42 + (rnd() - 0.35) * size * 0.3;
+    const r = 26 + rnd() * 48;
     const a = 0.35 + rnd() * 0.35;
     for (let p = 0; p < 6; p++) {
       g.fillStyle = `rgba(255,255,255,${a})`;
@@ -187,7 +190,11 @@ export function skyboxTexture(seed = 5, size = 512): THREE.CanvasTexture {
       g.fill();
     }
   }
-  return canvasTexture(c, 1, 1);
+  const t = canvasTexture(c, 1, 1);
+  // tile twice around the sphere so the seam/hemisphere stretch at u=0 fades
+  t.wrapS = THREE.RepeatWrapping;
+  t.repeat.set(2, 1);
+  return t;
 }
 
 // Item box texture — a glowing question-style box (original, non-trademarked).
