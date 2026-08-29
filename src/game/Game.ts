@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD, ITEM_BOX_PLACEMENTS, BOOST_PADS, JUMPS, type TrackDef } from '../config';
+import { upsertCustomLevel } from './catalog';
 import { RacerPreview } from './RacerPreview';
 import { buildScene, Track } from '../track/track';
 import { skyboxTexture } from '../util/tex';
@@ -83,7 +84,7 @@ export class Game {
     this.loadCustomLevel();
     this.#buildTrack();
     this.#makeEntities();
-    this.items.setPlacements(placementsFor(TRACKS[this.selectedMap])); // apply custom level's placements
+    this.items.setPlacements(placementsFor(this.trackCatalog[this.selectedMap])); // apply custom level's placements
     this.#bindGlobal();
     this.raceTimeMs = 0;
     this.paused = false;
@@ -197,11 +198,11 @@ export class Game {
   }
 
   #buildTrack() {
-    this.track = new Track(TRACKS[this.selectedMap].points, WORLD.roadWidth);
-    this.trackGroup = buildScene(this.scene, this.track, { trees: TRACKS[this.selectedMap].trees });
+    this.track = new Track(this.trackCatalog[this.selectedMap].points, WORLD.roadWidth);
+    this.trackGroup = buildScene(this.scene, this.track, { trees: this.trackCatalog[this.selectedMap].trees });
     // HUD may not exist yet during the constructor's initial build; it is set
     // again on every rebuild (map selection / restart) once the HUD is live.
-    if (this.hud) this.hud.setTrackPoints(TRACKS[this.selectedMap].points);
+    if (this.hud) this.hud.setTrackPoints(this.trackCatalog[this.selectedMap].points);
     this.builtMap = this.selectedMap;
   }
 
@@ -230,7 +231,7 @@ export class Game {
     }
     this.#buildTrack();
     for (const k of this.karts) k.track = this.track;
-    if (this.items) { this.items.track = this.track; this.items.setPlacements(placementsFor(TRACKS[this.selectedMap])); }
+    if (this.items) { this.items.track = this.track; this.items.setPlacements(placementsFor(this.trackCatalog[this.selectedMap])); }
     if (this.ai) this.ai.track = this.track;
   }
 
@@ -262,7 +263,7 @@ export class Game {
     const GLYPHS = ['🥇', '🧢', '😈', '🎀', '🦸', '🤖', '🎩', '🌺'];
     this.hud.setMenuData(
       DRIVER_STYLES.map((s, i) => ({ name: s.name, color: '#' + s.body.toString(16).padStart(6, '0'), style: s.driverStyle, glyph: GLYPHS[i] })),
-      TRACKS.map((t) => ({ id: t.id, name: t.name, desc: t.desc, color: t.color, points: t.points })),
+      this.trackCatalog.map((t) => ({ id: t.id, name: t.name, desc: t.desc, color: t.color, points: t.points })),
     );
     this.hud.onSelectCharacter = (i) => { this.selectedCharacter = i; this.#setPreviewCharacter(); };
     this.hud.onSelectMap = (i) => {
@@ -328,26 +329,17 @@ export class Game {
 
   // If the track editor saved a level via "Load in Game", register it as a
   // custom track and pre-select it so the game races it immediately.
+  // The exported TRACKS is never mutated (J-2): Game owns an instance catalog.
+  trackCatalog: TrackDef[] = [...TRACKS];
   loadCustomLevel() {
     const raw = localStorage.getItem('customLevel');
     if (!raw) return;
     try {
       const d = JSON.parse(raw);
-      const objs: any[] = d.objects || [];
-      const def: TrackDef = {
-        id: 'custom',
-        name: d.name || 'Custom',
-        desc: 'A custom track built in the editor.',
-        points: Array.isArray(d.points) && d.points.length ? d.points : TRACKS[0].points,
-        color: ['#4fd1c5', '#818cf8'],
-        trees: d.trees || [],
-        itemBoxes: objs.filter((o) => o.type === 'box').map((o) => ({ frac: o.frac, lateral: o.lateral })),
-        boostPads: objs.filter((o) => o.type === 'pad').map((o) => ({ frac: o.frac, lateral: o.lateral })),
-        jumps: objs.filter((o) => o.type === 'jump').map((o) => ({ frac: o.frac, lateral: o.lateral })),
-      };
-      const idx = TRACKS.findIndex((t) => t.id === 'custom');
-      if (idx >= 0) TRACKS[idx] = def; else TRACKS.push(def);
-      this.selectedMap = TRACKS.length - 1;
+      const next = upsertCustomLevel(this.trackCatalog, d);
+      if (!next) return; // malformed — leave the catalog untouched
+      this.trackCatalog = next;
+      this.selectedMap = this.trackCatalog.length - 1;
     } catch {
       localStorage.removeItem('customLevel'); // malformed — drop it
     }
