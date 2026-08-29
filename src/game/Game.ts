@@ -11,6 +11,9 @@ import { Items, type Placements } from './Items';
 import { Effects } from './Effects';
 import { PostStack } from './Post';
 import { loadPrefs, savePrefs, motionReduced, type PrefShape, PREF_DEFAULTS } from '../prefs';
+import { BroadcastTransport } from '../net/transport';
+import { NetController } from '../net/NetController';
+import { hashRace } from '../sim/state';
 import { AI } from './AI';
 import { HUD } from './HUD';
 import { Input } from './Input';
@@ -64,6 +67,9 @@ export class Game {
   sunLight!: THREE.DirectionalLight; // M2 J-16: shadow frustum tracks the player
   post!: PostStack; // M2 J-17: bloom + vignette (null-safe fallback path)
   prefs: PrefShape = { ...PREF_DEFAULTS }; // M2 J-21: device-local settings
+  net: NetController | null = null; // M3 J-26: live or null (pure single-player)
+  netTick = 0;
+  rngSeed = 0x5eed; // lobby-agreed race seed (host shares via START)
   track!: Track;
   trackGroup!: THREE.Group;
   audio!: Audio;
@@ -98,7 +104,8 @@ export class Game {
     // seed: ?seed=<int> (headless QA pins a seed); deterministic default so
     // two loads of the same URL produce the same item/AI stream (J-5/J-9)
     const seedParam = Number(new URLSearchParams(location.search).get('seed'));
-    this.rng = new Rng(Number.isFinite(seedParam) && seedParam !== 0 ? seedParam : 0x5eed);
+    this.rngSeed = Number.isFinite(seedParam) && seedParam !== 0 ? seedParam : 0x5eed;
+    this.rng = new Rng(this.rngSeed);
     // M2 (J-21): device-local preferences (volume/mute/camera/motion); absent
     // or corrupt storage yields defaults — prefs never block gameplay.
     this.prefs = loadPrefs(typeof localStorage !== 'undefined' ? localStorage : null);
@@ -291,6 +298,26 @@ export class Game {
     if (new URLSearchParams(window.location.search).has('debug')) {
       (window as any).__kk = this;
     }
+    // M3 (J-23/J-26): room-code sessions — `?room=<code>&host=1` opens a lobby
+    // on a BroadcastChannel; guests just pass `?room=<code>&name=<name>`.
+    const room = new URLSearchParams(window.location.search).get('room');
+    if (room && typeof BroadcastChannel !== 'undefined') {
+      const transport = new BroadcastTransport('tab-' + Math.random().toString(36).slice(2, 8), room);
+      const params = new URLSearchParams(window.location.search);
+      const isHost = params.has('host');
+      this.net = new NetController(transport, 0, {
+        asHost: isHost,
+        localName: params.get('name') || undefined,
+      });
+      this.net.onStart = (seed) => this.beginNetRace(seed);
+      // zero-UI lobby flow: as soon as one guest joins, the host starts
+      this.net.onLobby = (players, isHost2) => {
+        if (isHost2 && players.length >= 2 && this.state === 'MENU') {
+          this.net?.startRace(this.rngSeed);
+        }
+      };
+      if (!isHost) this.net.join(params.get('name') || 'guest'); // knock on the lobby
+    }
     this.hud = new HUD(this.app);
 
     this.karts = [];
@@ -327,7 +354,7 @@ export class Game {
     };
   }
 
-  get player(): Kart { return this.karts[0]; }
+  get player(): Kart { return this.karts[this.net?.selfIndex ?? 0]; }
 
   // Move the menu-selected character to the front so they become the player kart.
   #applyPlayerSelection() {
@@ -460,6 +487,11 @@ export class Game {
       this.#finalLapCallout();
       this.#checkFinish();
       this.#finishGuarantee(dt);
+      // M3 (J-25): per-tick race hash — Lockstep publishes at its own cadence
+      // (20Hz) and fires onDesync on peer mismatch.
+      if (this.net) {
+        this.net.postTick(this.netTick++, hashRace(this.karts, this.items.sim, this.timeMs, this.raceTimeMs));
+      }
     } else if (this.state === 'FINISHED') {
       // karts are parked (speed forced to 0); keep them static by disabling input
       this.#updateKarts(dt, false);
@@ -486,9 +518,25 @@ export class Game {
   }
 
   #updateKarts(dt: number, canMove: boolean) {
+    // M3 (J-26): when a net session is live, the local player's input is read
+    // ONCE per tick and submitted through the lockstep gate (2-tick delay);
+    // returned frames drive every human kart. AI karts stay locally simulated
+    // by each peer (same seed, same consumption order; the stateHash tripwire
+    // catches transient divergence). No net => identical single-player path.
+    let netFrames: InputFrame[] | null = null;
+    if (this.net) {
+      this.input.resetFrame();
+      const local = this.auto ? this.ai.think(this.player, dt) : this.input.read();
+      netFrames = this.net.preTick(local);
+    }
     for (const kart of this.karts) {
       let inp: InputFrame;
-      if (kart.isPlayer) {
+      const humanKart = this.net?.humanKartIndex(kart.index);
+      if (netFrames && humanKart !== null && humanKart !== undefined) {
+        inp = netFrames[kart.index];
+        this.input.resetFrame();
+        if (inp.itemPressed && kart.item) kart.useItem();
+      } else if (kart.isPlayer) {
         this.input.resetFrame();
         inp = this.auto ? this.ai.think(kart, dt) : this.input.read();
         if (inp.itemPressed && kart.item) kart.useItem();
@@ -597,6 +645,24 @@ export class Game {
       this.sunLight.target.updateMatrixWorld();
     }
   }
+
+  // M3 (J-26): begin a net race — re-seed the sim with the lobby-agreed seed,
+  // swap the local "player" kart to our net slot, and start. Inputs for human
+  // karts flow through NetController.preTick; AI karts stay peer-local.
+  beginNetRace(seed: number): void {
+    this.rng = new Rng(seed >>> 0);
+    if (this.net) {
+      const me = this.net.selfIndex;
+      if (me !== 0 && this.karts[me]) {
+        for (const k of this.karts) k.isPlayer = false;
+        this.karts[me].isPlayer = true;
+      }
+      this.player; // getter now resolves to our net slot
+    }
+    this.restart();
+    this.startRace();
+  }
+
   #makeNamePlate(name: string, color: number): THREE.Sprite {
     const c = document.createElement('canvas');
     c.width = 256; c.height = 64;

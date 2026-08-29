@@ -87,7 +87,14 @@ export class NetController {
 
   // Each human's kart index is fixed by the lobby; AI karts fill the rest.
   humanKartCount(): number {
-    return this.players.length; // local-only during race setup; guests' karts stay AI-driven pending M3 step 5
+    return this.players.length;
+  }
+
+  // The kart index if kart i is human-controlled in this session, else null.
+  humanKartIndex(kartIndex: number): number | null {
+    if (!this.players.length) return this.isHost ? (kartIndex === 0 ? 0 : null) : null;
+    const p = this.players.find((pl) => pl.kartIndex === kartIndex);
+    return p ? p.kartIndex : null;
   }
 
   hostName(): string {
