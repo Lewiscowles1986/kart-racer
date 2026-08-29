@@ -11,11 +11,13 @@ export class Audio {
   musicTimer: ReturnType<typeof setInterval> | null;
   _bar: number;
   _musicOn: boolean;
+  volume: number;
 
   constructor() {
     this.ctx = null;
     this.enabled = false;
     this.muted = false;
+    this.volume = 0.55;
     this.master = null;
     this.engineOsc = null;
     this.engineOsc2 = null;
@@ -49,13 +51,18 @@ export class Audio {
     const ctx = new AC();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 0.55;
+    this.master.gain.value = this.muted ? 0 : this.volume; // M4 (J-36): persisted volume
     this.master.connect(ctx.destination);
   }
 
   setMuted(m: boolean) {
     this.muted = m;
-    if (this.master) this.master.gain.value = m ? 0 : 0.55;
+    if (this.master) this.master.gain.value = m ? 0 : this.volume;
+  }
+
+  setVolume(v: number) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.volume;
   }
 
   _tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.3, glideTo: number | null = null, when = 0) {

@@ -159,6 +159,9 @@ export class Game {
   }
   toggleMute() {
     this.audio.setMuted(!this.audio.muted);
+    // M4 (J-36): mute state persists with the rest of the prefs
+    this.prefs.muted = this.audio.muted;
+    savePrefs(this.prefs, typeof localStorage !== 'undefined' ? localStorage : null);
   }
   quitToMenu() {
     this.paused = false;
@@ -287,6 +290,8 @@ export class Game {
 
   #makeEntities() {
     this.audio = new Audio();
+    this.audio.setVolume(this.prefs.volume); // M4 (J-36): persisted volume
+    this.audio.setMuted(this.prefs.muted);
     this.audio.warmup(); // create the AudioContext during load, not on Start click
     this.input = new Input();
     this.effects = new Effects(this.scene, 2000);
