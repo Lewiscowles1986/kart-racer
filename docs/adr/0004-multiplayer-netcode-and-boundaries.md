@@ -49,7 +49,20 @@ flowchart TB
 
 ### Netcode choice
 
-**Host-authoritative input replay** built on the deterministic sim:
+> **Amendment (round-1 judge, binding):** *In-race authority is deterministic
+> lockstep with 2–3-tick input delay — every peer runs the same sim and
+> exchanges delayed, clamped `InputFrame`s with per-tick `stateHash` exchange
+> (rooms are gated to same-engine peers until AR-9's transcendental math is
+> replaced by polynomial evaluation; divergence triggers an alert and a
+> snapshot+command-tail resync) — while the host is only a session coordinator
+> (seed, roster, start tick), and host-authoritative snapshots remain solely
+> for late-join, migration, resync, and mixed-engine fallback, never as the
+> primary race authority.*
+
+**Host-authoritative input replay** built on the deterministic sim (see the
+original rationale below; the amendment above supersedes the primary/fallback
+ordering — deterministic lockstep is the primary in-race protocol; the
+mechanics described here now serve snapshot resync, late join and migration):
 
 1. Host runs the authoritative sim tick loop with `TICK_MS` fixed steps.
 2. Guests send their `InputFrame` commands to the host (batched per input
