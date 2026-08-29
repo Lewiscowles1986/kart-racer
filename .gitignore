@@ -10,3 +10,6 @@ shots/
 
 # local npm cache (worktree-local, untracked)
 .npm-cache/
+
+# critics/builders scratch space (never shipped)
+scripts/scratch-*/
