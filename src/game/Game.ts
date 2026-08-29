@@ -3,7 +3,7 @@ import { RENDERER, RACE, PHYS, GRID_GAP, CAMERA, CAMERA_MODES, TRACKS, WORLD, IT
 import { upsertCustomLevel } from './catalog';
 import { collideKarts, respawnCheck, fabricatePodium, scoreOf } from '../sim/raceSim';
 import { RacerPreview } from './RacerPreview';
-import { buildScene, Track } from '../track/track';
+import { buildScene, Track, terrainHeight } from '../track/track';
 import { skyboxTexture } from '../util/tex';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Kart, type World } from './Kart';
@@ -653,12 +653,27 @@ export class Game {
       look = p.pos.clone().addScaledVector(forward, 0).setY(p.pos.y);
     } else {
       want = p.pos.clone().addScaledVector(forward, -m.distance).setY(p.pos.y + m.height);
-      look = p.pos.clone().addScaledVector(forward, m.lookAhead).setY(p.pos.y + 0.6);
+      // 3D-read pass (playtest: "not sure if it's full 3D"): aim at the ROAD
+      // AHEAD and its terrain height — crests open the horizon and dips pitch
+      // you down the slope. Horizontal aim stays on the kart's own line, so
+      // the view only moves vertically over terrain.
+      const ahead = this.track.sampleAtU((p.prevU || 0) + m.lookAhead).sample;
+      look = new THREE.Vector3(
+        p.pos.x + (ahead.x - p.pos.x) * 0.35 + forward.x * m.lookAhead * 0.65,
+        terrainHeight(ahead.x, ahead.z) + 0.9,
+        p.pos.z + (ahead.z - p.pos.z) * 0.35 + forward.z * m.lookAhead * 0.65,
+      );
     }
 
     this.camera.position.lerp(want, Math.min(1, CAMERA.lerp * dt));
     this.camera.lookAt(look);
-    const fov = m.fov + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0);
+    // speed FOV pump (3D-read pass): the world visibly widens as you get up
+    // to speed — strongest motion cue after the terrain pitch. Gated by
+    // reduced-motion like the boost kick.
+    const speedFrac = Math.min(1, Math.abs(p.speed) / PHYS.maxSpeed);
+    const fov = m.fov
+      + (boosting && !this.reduceMotion ? CAMERA.fovBoost - CAMERA.fovBase : 0)
+      + (!this.reduceMotion ? speedFrac * 7 : 0);
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, 5 * dt);
     this.camera.updateProjectionMatrix();
 

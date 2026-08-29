@@ -229,6 +229,8 @@ export function createKartMesh(opts: KartMeshOptions = {}): KartVisual {
   root.add(shield);
 
   // ---- public API ----
+  let lean = 0; // filtered steer -> weight-shift body roll (3D-read pass)
+
   return {
     root,
     wheels,
@@ -243,6 +245,9 @@ export function createKartMesh(opts: KartMeshOptions = {}): KartVisual {
     // pitch, airborne pitch from vy, roll lean into the turn, smoothed by slerp.
     orient({ pos, yaw, airborne, vy, steer, dt, normal }: KartVisualOrient) {
       root.position.set(pos.x, pos.y, pos.z);
+      // 3D-read pass: the lean filters through its own lag so the kart visibly
+      // ROLLS INTO a corner (weight-shift), instead of snapping with the input
+      lean += (steer - lean) * Math.min(1, 4.5 * dt);
       let target: THREE.Quaternion;
       if (airborne) {
         const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, yaw);
@@ -256,7 +261,7 @@ export function createKartMesh(opts: KartMeshOptions = {}): KartVisual {
         const pitchQ = new THREE.Quaternion().setFromUnitVectors(UP, n);
         target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
       }
-      const rollQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), steer * 0.35);
+      const rollQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), lean * 0.5);
       target = target.multiply(rollQ);
       root.quaternion.slerp(target, Math.min(1, 10 * dt));
     },
@@ -264,6 +269,9 @@ export function createKartMesh(opts: KartMeshOptions = {}): KartVisual {
       const rot = (speed / 0.42) * dt;
       for (const w of wheels) w.rotation.x -= rot;
       for (const w of wheels) if (w.userData.front) w.rotation.y = steer * 0.5;
+      // boost = nose-up crouch on the chassis (reads as raw power under throttle)
+      const crouch = boosting ? -0.05 : 0;
+      chassis.rotation.x += (crouch - chassis.rotation.x) * Math.min(1, 6 * dt);
       const on = shieldT > 0;
       shield.visible = on;
       shield.material.opacity = on ? 0.35 + 0.15 * Math.sin(raceTime * 8) : 0;

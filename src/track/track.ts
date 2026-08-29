@@ -225,6 +225,24 @@ export function genTreePositions(samples: Sample[], halfWidth: number): [number,
     out.push([x, z, r]);
     placedPos.push([x, z]);
   }
+  // 3D-read pass: a ring of GIANT landmark trees far off-road — the parallax
+  // anchor that makes corners read as 3D (the horizon stops being a flat wall
+  // of sky). Same LCG/instanced pipeline as normal trees: zero extra draw
+  // calls, deterministic placement.
+  const GIANTS = 10;
+  for (let i = 0; i < GIANTS; i++) {
+    const a = (i / GIANTS) * Math.PI * 2 + rand() * 0.4;
+    const dist = 185 + rand() * 55;
+    const x = Math.cos(a) * dist, z = Math.sin(a) * dist * 0.82;
+    let minD = Infinity;
+    for (const s of samples) {
+      const dx = x - s.x, dz = z - s.z;
+      const d = dx * dx + dz * dz;
+      if (d < minD) minD = d;
+    }
+    if (Math.sqrt(minD) < 45) continue; // never near the road
+    out.push([x, z, 4.5 + rand() * 3.2]);
+  }
   return out;
 }
 

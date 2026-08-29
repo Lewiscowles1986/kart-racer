@@ -42,7 +42,7 @@ describe('scene instancing (fence + trees)', () => {
     expect(instanced.filter((o) => o.geometry.type === 'CylinderGeometry' && o.count !== expectedPosts).length).toBe(1); // trunks
 
     const crowns = instanced.find((o) => o.geometry.type === 'SphereGeometry');
-    expect(crowns.count).toBe(55);            // TREE_TARGET from genTreePositions
+    expect(crowns.count).toBe(65);            // TREE_TARGET 55 + 10 giant horizon landmarks
 
     // whole track group must stay far below the pre-instancing ~386 meshes
     // (ground + shoulder + road + 2 kerbs + posts IM + trunk IM + crown IM + 3 banner parts)
