@@ -86,8 +86,8 @@ export class HUD {
         <div class="ranks"></div>
         <div class="cam-chip">Cam: <span class="cam-name">Chase</span></div>
         <div class="hud-buttons">
-          <button class="hudbtn mute">🔊</button>
-          <button class="hudbtn pause">⏸</button>
+          <button class="hudbtn mute" aria-label="Toggle sound" aria-pressed="false">🔊</button>
+          <button class="hudbtn pause" aria-label="Pause or resume">⏸</button>
         </div>
       </div>
       <div class="hud-bottom">
@@ -101,7 +101,7 @@ export class HUD {
         <div class="btn btn-gas">▲</div>
         <div class="btn btn-item">ITEM</div>
       </div>
-      <div class="countdown"></div>
+      <div class="countdown" role="status" aria-live="polite"></div>
       <div class="vignette"></div>
       <div class="center-overlay"><div class="panel"></div></div>
       ${this.#css()}
@@ -351,7 +351,10 @@ export class HUD {
       this.itemEl.style.opacity = item ? '1' : '0.25';
     }
     this.muted = muted;
-    if (this.muteBtn) this.muteBtn.textContent = muted ? '🔇' : '🔊';
+    if (this.muteBtn) {
+      this.muteBtn.textContent = muted ? '🔇' : '🔊';
+      this.muteBtn.setAttribute('aria-pressed', String(muted)); // a11y (J-40)
+    }
     this.muteBtn && this.muteBtn.classList.toggle('muted', muted);
   }
 
