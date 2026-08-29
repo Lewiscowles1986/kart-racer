@@ -111,6 +111,50 @@ free, stateless); if the NAT eats it, the room owner may supply a TURN — the
 only case where "a server system" exists, and it is outside our trust boundary
 by design.
 
+## 4b. Lockstep operation — the judge amendment, now concrete (M3 spec)
+
+Per the binding **ADR-0004 amendment**: deterministic **lockstep with a
+2–3 tick input delay is PRIMARY**; host-snapshots exist only for join/resync/
+migrate/mixed-engine fallback. The host is an **authoritative coordinator**,
+not a simulator-of-record — every peer runs the identical sim locally and
+advances only on agreement.
+
+```mermaid
+stateDiagram-v2
+    [*] --> LOBBY: host announces HELLO
+    LOBBY --> COUNTDOWN: all READY ⇒ START{seed, players, startTick=now+30}
+    COUNTDOWN --> RACING: startTick reached (same tick on every peer)
+    RACING --> RACING: CMD INPUT(tick+DELAY) — 120Hz sim, inputs applied 2 ticks late
+    RACING --> RESYNC: stateHash mismatch reported
+    RESYNC --> RACING: snapshot + command tail re-verified (hash equal)
+    RACING --> MIGRATING: host lost ⇒ elect peer
+    MIGRATING --> RACING: elected runs restore(snapshot)+tail
+    RACING --> FINISHED: all karts finished (scoreOf order = GP-7 rule)
+    FINISHED --> LOBBY: REMATCH
+```
+
+Tick cadence rules (all primitives already exist in M1):
+
+1. Every peer simulates `Game.#simUpdate` at exactly `TICK_MS = 1000/120`.
+2. Local keyboard → `CMD INPUT` for tick `T+2` (2-tick delay buffer; T+3 under
+   measured round-trip > 60ms). Inputs for a tick are closed at that tick —
+   missing input ⇒ neutral frame (never a stall).
+3. Each peer computes `stateHash(snapshotRace())` per tick and exchanges it on
+   the reliable channel at 20Hz (every 6th tick). A mismatch ⇒ RESYNC flow:
+   the host's snapshot + its command tail are applied (`applyKartSnapshot`
+   + ItemsSim), and the hash is re-checked before continuing.
+4. Events (`EVENT` sfx/particles/emotes/chat) replay from the SimEventQueue —
+   presentation only, never authoritative state.
+5. **Same-engine room gate**: while `worldToTrack` still carries transcendental
+   terrain math, room codes gate on the engine signature in `HELLO`
+   (`engine: 'kk-webgl@'+protocolVersion`); a cross-engine join falls back to
+   snapshot-follow mode (host STATE @20Hz) until J-23/J-26 replace the
+   transcendentals with polynomial approximations.
+6. The **host may not command its own simulation differently** from guests —
+   host inputs enter the same command queue, with the same delay. Authority
+   means: START/RESYNC/KICK/MIGRATE and item-box truth on join, not per-tick
+   state truth.
+
 ## 5. Cheating & trust
 
 Friends-racing posture: the host's word is final (items, positions, finish
