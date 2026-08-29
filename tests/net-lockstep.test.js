@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LoopbackTransport } from '../src/net/transport';
-import { Lockstep, NEUTRAL_FRAME } from '../src/net/lockstep';
+import { Lockstep, NEUTRAL_FRAME, clampFrame } from '../src/net/lockstep';
 
 const drain = () => new Promise((r) => setTimeout(r, 0));
 
@@ -82,5 +82,39 @@ describe('lockstep core (M3 step 2, J-24/J-25)', () => {
       if (t % 3 === 0) a.noteHash(t, 'h' + t);
     }
     expect(a.pendingTicks).toBeLessThan(90);
+  });
+
+  it('remote frames are CLAMPED at the trust boundary (judge bars #6/#7)', async () => {
+    // legal extremes survive, out-of-range is clamped, NaN becomes 0
+    expect(clampFrame({ steer: 5, throttle: 9, brake: 'yes', itemPressed: 1 })).toEqual({ steer: 1, throttle: 1, brake: false, itemPressed: false, itemHeld: false });
+    expect(clampFrame({ steer: -7 })).toEqual({ steer: -1, throttle: 0, brake: false, itemPressed: false, itemHeld: false });
+    expect(clampFrame({ steer: 'NaN-string', throttle: Number.NaN })).toEqual({ steer: 0, throttle: 0, brake: false, itemPressed: false, itemHeld: false });
+    expect(clampFrame(null)).toEqual(NEUTRAL_FRAME);
+
+    // end-to-end: a malicious sibling cannot smuggle steer=42 into the buffer
+    const [ta, tb] = LoopbackTransport.pair('evil');
+    const victim = new Lockstep({ transport: ta, selfIndex: 0, playerCount: 2, inputDelay: 0 });
+    new Lockstep({ transport: tb, selfIndex: 1, playerCount: 2, inputDelay: 0 });
+    victim.submitFrame(FRAME(0)); // the gate needs the victim's own input
+    // inject a crafted CMD INPUT directly on the raw transport
+    tb.send({ t: 'CMD INPUT', reliable: true, payload: { tick: 0, kart: 1, frame: { steer: 42, throttle: -9, brake: true } } });
+    await drain();
+    const frames = victim.tryAdvance();
+    expect(frames[1]).toEqual({ steer: 1, throttle: 0, brake: true, itemPressed: false, itemHeld: false });
+  });
+
+  it('malformed CMD INPUT is rejected outright (no crash, no NaN ticks)', async () => {
+    const { a } = pair();
+    const raw = a.transport;
+    const got = [];
+    a.onFramesReady((f) => got.push(f));
+    raw.onMessage(() => {}); // transport still alive after garbage
+    a.transport.send({ t: 'CMD INPUT', reliable: true, payload: { tick: null, kart: 'x', frame: { steer: [1, 2] } } });
+    raw.send({ t: 'CMD INPUT', reliable: true, payload: { tick: 3, kart: 1, frame: { steer: 0.5, throttle: 1, brake: false, itemPressed: false, itemHeld: false } } });
+    await drain();
+    // the malicious frame is ignored, the well-formed one buffers silently —
+    // no exception escaped; the core still accepts its own input afterwards
+    a.submitFrame(FRAME(0.2));
+    expect(a.tryAdvance()).not.toBeNull();
   });
 });

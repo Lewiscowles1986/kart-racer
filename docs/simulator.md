@@ -20,9 +20,10 @@ To make that true, the sim obeys four commandments:
    through `commands` or `config` (or the seeded rng).
 4. **Float discipline.** Only `+ - * /` and integer ops inside the step.
    Transcendentals (`sin/cos/atan2`) are allowed inside a *step* because the
-   same engine re-executes them identically (determinism is per-engine);
-   cross-engine lockstep is deliberately out of scope (ADR-0004 uses
-   host-authoritative snapshots instead).
+   same engine re-executes them identically (determinism is per-engine).
+   Cross-engine lockstep stays gated: ADR-0004's amendment makes deterministic
+   lockstep PRIMARY (docs/multiplayer.md §4b), and rooms gate on an engine/
+   protocol signature in HELLO until J-23/J-26 replace the transcendentals.
 
 ## 2. Time control
 
