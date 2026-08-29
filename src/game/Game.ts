@@ -486,9 +486,8 @@ export class Game {
           const rel = (a.speed - b.speed) * 0.3;
           a.speed -= rel; b.speed += rel;
           // star plow: a shielded kart knocks the other one over
-          const shove = new THREE.Vector3(nx, 0, nz);
-          if (a.shieldT > 0 && !b.shieldT) b.hitPlow(shove);
-          else if (b.shieldT > 0 && !a.shieldT) a.hitPlow(shove.clone().negate());
+          if (a.shieldT > 0 && !b.shieldT) b.hitPlow({ x: nx, z: nz });
+          else if (b.shieldT > 0 && !a.shieldT) a.hitPlow({ x: -nx, z: -nz });
         }
       }
     }

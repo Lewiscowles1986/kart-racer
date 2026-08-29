@@ -1,6 +1,28 @@
 import * as THREE from 'three';
 import { KART_SCALE } from '../config';
 
+const UP = new THREE.Vector3(0, 1, 0);
+
+// Orientation + animation inputs are PLAIN records from the sim (M1 step 7):
+// the mesh controller never reaches back into the Kart instance.
+export interface KartVisualOrient {
+  pos: { x: number; y: number; z: number };
+  yaw: number;
+  airborne: boolean;
+  vy: number;
+  steer: number;
+  dt: number;
+  normal: { x: number; y: number; z: number };
+}
+export interface KartVisualAnimate {
+  dt: number;
+  speed: number;
+  steer: number;
+  boosting: boolean;
+  shieldT: number;
+  raceTime: number;
+}
+
 interface DriverMaterials {
   driverMat: THREE.Material;
   skinMat: THREE.Material;
@@ -98,6 +120,9 @@ export interface KartVisual {
   driver: THREE.Group;
   pipes: THREE.Mesh[];
   setShield: (on: boolean, t: number) => void;
+  // M1 step 7 (visual controller): all mesh transforms derive from sim state.
+  orient(st: KartVisualOrient): void;
+  animate(st: KartVisualAnimate): void;
 }
 
 export interface KartMeshOptions {
@@ -213,6 +238,36 @@ export function createKartMesh(opts: KartMeshOptions = {}): KartVisual {
     setShield(on, t) {
       shield.visible = on;
       shield.material.opacity = on ? 0.35 + 0.15 * Math.sin(t * 8) : 0;
+    },
+    // verbatim v1 physics-driven placement: body position, yaw + terrain-normal
+    // pitch, airborne pitch from vy, roll lean into the turn, smoothed by slerp.
+    orient({ pos, yaw, airborne, vy, steer, dt, normal }: KartVisualOrient) {
+      root.position.set(pos.x, pos.y, pos.z);
+      let target: THREE.Quaternion;
+      if (airborne) {
+        const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, yaw);
+        const pitch = THREE.MathUtils.clamp(-vy * 0.045, -0.7, 0.65);
+        const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+        const pitchQ = new THREE.Quaternion().setFromAxisAngle(side, pitch);
+        target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
+      } else {
+        const n = new THREE.Vector3(normal.x, normal.y, normal.z);
+        const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, yaw);
+        const pitchQ = new THREE.Quaternion().setFromUnitVectors(UP, n);
+        target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
+      }
+      const rollQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), steer * 0.35);
+      target = target.multiply(rollQ);
+      root.quaternion.slerp(target, Math.min(1, 10 * dt));
+    },
+    animate({ dt, speed, steer, boosting, shieldT, raceTime }: KartVisualAnimate) {
+      const rot = (speed / 0.42) * dt;
+      for (const w of wheels) w.rotation.x -= rot;
+      for (const w of wheels) if (w.userData.front) w.rotation.y = steer * 0.5;
+      const on = shieldT > 0;
+      shield.visible = on;
+      shield.material.opacity = on ? 0.35 + 0.15 * Math.sin(raceTime * 8) : 0;
+      void boosting;
     },
   };
 }

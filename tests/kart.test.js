@@ -22,7 +22,7 @@ function makeKart() {
     timeMs: 0,
     totalLaps: 3,
   };
-  const visual = { root: new THREE.Group(), wheels: [], driver: new THREE.Group(), setShield() {} };
+  const visual = { root: new THREE.Group(), wheels: [], driver: new THREE.Group(), setShield() {}, orient() {}, animate() {} };
   const kart = new Kart({ index: 0, name: 'You', color: 0xff0000, accent: 0xffffff, track, world, visual });
   return { kart, world, samples: track.samples };
 }

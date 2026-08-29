@@ -8,7 +8,6 @@ import type { SimEventQueue } from '../sim/events';
 import type { Rng } from '../sim/rng';
 import type { Items } from './Items';
 
-const UP = new THREE.Vector3(0, 1, 0);
 // ride height of the kart's center above the terrain, scaled with the kart
 const RIDE_HEIGHT = 0.9 * KART_SCALE;
 
@@ -172,11 +171,12 @@ export class Kart {
   }
 
   // A shielded (star) kart plows into this one: hard shove + brief spin.
-  hitPlow(shoveDir: THREE.Vector3) {
+  hitPlow(shoveDir: { x: number; z: number }) {
     if (this.shieldT > 0 || this.spinning > 0) return;
     this.spinning = Math.max(this.spinning, 0.65);
     this.speed *= 0.35;
-    this.pos.addScaledVector(shoveDir, 2.2 * KART_SCALE);
+    this.pos.x += shoveDir.x * 2.2 * KART_SCALE;
+    this.pos.z += shoveDir.z * 2.2 * KART_SCALE;
     this.world.events.emit({ t: 'spinStars', at: { x: this.pos.x, y: this.pos.y + 0.4 * KART_SCALE, z: this.pos.z }, count: 8 });
     this.world.events.emit({ t: 'sfx', name: 'hit' });
   }
@@ -343,39 +343,23 @@ export class Kart {
     return base;
   }
 
+  // Sim events first (they are part of the sim tick), then the visual
+  // controller mirrors state into meshes (M1 step 7: mesh code lives there).
   #orient(dt: number, steer: number) {
-    this.visualRoot.position.copy(this.pos);
-    let target: THREE.Quaternion;
-    if (this.airborne) {
-      // pitch from vertical velocity: nose up on ascent, nose down on descent
-      const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
-      const pitch = THREE.MathUtils.clamp(-this.vy * 0.045, -0.7, 0.65);
-      const side = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-      const pitchQ = new THREE.Quaternion().setFromAxisAngle(side, pitch);
-      target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
-    } else {
-      const n = terrainNormal(this.pos.x, this.pos.z);
-      const yawQ = new THREE.Quaternion().setFromAxisAngle(UP, this.yaw);
-      const pitchQ = new THREE.Quaternion().setFromUnitVectors(UP, n);
-      target = new THREE.Quaternion().multiplyQuaternions(yawQ, pitchQ);
-    }
-    // add roll lean in local frame (into the turn)
-    const rollQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), steer * 0.35);
-    target = target.multiply(rollQ);
-    this.visualRoot.quaternion.slerp(target, Math.min(1, 10 * dt));
+    this.visual.orient({
+      pos: { x: this.pos.x, y: this.pos.y, z: this.pos.z },
+      yaw: this.yaw, airborne: this.airborne, vy: this.vy,
+      steer, dt, normal: terrainNormal(this.pos.x, this.pos.z),
+    });
   }
 
   #visuals(dt: number, steer: number, boosting: boolean) {
-    const v = this.visual;
-    const rot = (this.speed / 0.42) * dt;
-    for (const w of v.wheels) w.rotation.x -= rot;
-    for (const w of v.wheels) if (w.userData.front) w.rotation.y = steer * 0.5;
     if (boosting) {
       this.world.events.emit({ t: 'boostTrail', at: { x: this.pos.x, y: this.pos.y + 0.5, z: this.pos.z }, dir: { x: Math.sin(this.yaw), y: 0, z: Math.cos(this.yaw) }, rgb: [1, 0.6, 0.2], count: 4 });
     }
     if (this.drifting) {
       this.world.events.emit({ t: 'dust', at: { x: this.pos.x, y: this.pos.y + 0.2, z: this.pos.z }, count: 2 });
     }
-    if (this.shieldT > 0) v.setShield(true, this.raceTime); else v.setShield(false, 0);
+    this.visual.animate({ dt, speed: this.speed, steer, boosting, shieldT: this.shieldT, raceTime: this.raceTime });
   }
 }
